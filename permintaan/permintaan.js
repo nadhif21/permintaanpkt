@@ -145,7 +145,8 @@ async function loadData() {
                 L: getColumnValue(11),
                 pilihPermintaan: findColumnValue(row, 'Pilih Permintaan'),
                 timestamp: findColumnValue(row, 'Timestamp'),
-                status: findColumnValue(row, 'Status') || ''
+                status: findColumnValue(row, 'Status') || '',
+                flag: findColumnValue(row, 'Flag') || ''
             };
         });
 
@@ -156,7 +157,7 @@ async function loadData() {
     } catch (error) {
         console.error('Error loading data:', error);
         document.getElementById('tableBody').innerHTML = 
-            '<tr><td colspan="7" class="loading">' +
+            '<tr><td colspan="8" class="loading">' +
             '<strong style="color: #dc3545;">Error: ' + escapeHtml(error.message) + '</strong>' +
             '</td></tr>';
         document.getElementById('cardsContainer').innerHTML = 
@@ -291,7 +292,7 @@ function displayData() {
     const isMobile = window.innerWidth <= 768;
     
     if (filteredData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="loading">Tidak ada data yang ditemukan</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="loading">Tidak ada data yang ditemukan</td></tr>';
         cardsContainer.innerHTML = '<div class="loading">Tidak ada data yang ditemukan</div>';
         return;
     }
@@ -312,6 +313,15 @@ function getStatusColumnIndex() {
     return -1;
 }
 
+function getFlagColumnIndex() {
+    for (let i = 0; i < spreadsheetHeaders.length; i++) {
+        if (spreadsheetHeaders[i] && spreadsheetHeaders[i].toLowerCase().includes('flag')) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 function formatStatus(status) {
     if (!status) return '<span class="status-badge status-empty">-</span>';
     const statusLower = status.toLowerCase();
@@ -323,8 +333,23 @@ function formatStatus(status) {
     return `<span class="status-badge">${escapeHtml(status)}</span>`;
 }
 
+function formatFlag(flag) {
+    if (!flag) return '<span class="flag-badge flag-empty">-</span>';
+    const flagLower = flag.toLowerCase();
+    if (flagLower === 'hijau') {
+        return '<span class="flag-badge flag-hijau">Hijau</span>';
+    } else if (flagLower === 'kuning') {
+        return '<span class="flag-badge flag-kuning">Kuning</span>';
+    } else if (flagLower === 'merah') {
+        return '<span class="flag-badge flag-merah">Merah</span>';
+    }
+    return `<span class="flag-badge">${escapeHtml(flag)}</span>`;
+}
+
 function displayTable() {
     const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+    
     const displayColumns = [0, 1, 2, 3, 5, 6];
     const statusColIndex = getStatusColumnIndex();
     
@@ -338,14 +363,33 @@ function displayTable() {
         });
 
         const statusCell = formatStatus(row.status);
+        const flagCell = formatFlag(row.flag);
 
         return `
-            <tr onclick="showDetail(${row.id})">
+            <tr data-row-id="${row.id}" class="data-row">
                 ${cells.map(cell => `<td>${cell}</td>`).join('')}
                 <td onclick="event.stopPropagation()">${statusCell}</td>
+                <td onclick="event.stopPropagation()">${flagCell}</td>
             </tr>
         `;
     }).join('');
+    
+    tbody.querySelectorAll('.data-row').forEach(row => {
+        row.style.cursor = 'pointer';
+        const rowId = parseInt(row.getAttribute('data-row-id'));
+        if (rowId !== null && !isNaN(rowId)) {
+            row.addEventListener('click', function(e) {
+                const clickedTd = e.target.closest('td');
+                if (clickedTd && clickedTd.hasAttribute('onclick')) {
+                    return;
+                }
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Row clicked, rowId:', rowId);
+                showDetail(rowId);
+            });
+        }
+    });
 }
 
 function displayCards() {
@@ -374,13 +418,34 @@ function displayCards() {
             </div>
         `;
 
+        const flagRow = `
+            <div class="card-row">
+                <div class="card-label">Flag</div>
+                <div class="card-value">${formatFlag(row.flag)}</div>
+            </div>
+        `;
+
         return `
-            <div class="card" onclick="showDetail(${row.id})">
+            <div class="card" data-row-id="${row.id}">
                 ${cardRows}
                 ${statusRow}
+                ${flagRow}
             </div>
         `;
     }).join('');
+    
+    cardsContainer.querySelectorAll('.card').forEach(card => {
+        card.style.cursor = 'pointer';
+        const rowId = parseInt(card.getAttribute('data-row-id'));
+        if (rowId !== null && !isNaN(rowId)) {
+            card.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Card clicked, rowId:', rowId);
+                showDetail(rowId);
+            });
+        }
+    });
 }
 
 window.addEventListener('resize', () => {
@@ -472,12 +537,17 @@ function updateTableHeaders() {
     thead.innerHTML = displayColumns.map(index => {
         const headerName = spreadsheetHeaders[index] || `Kolom ${String.fromCharCode(65 + index)}`;
         return `<th>${escapeHtml(headerName)}</th>`;
-    }).join('') + '<th>Status</th>';
+    }).join('') + '<th>Status</th><th>Flag</th>';
 }
 
 function showDetail(rowId) {
+    console.log('showDetail called with rowId:', rowId);
     const row = allData.find(r => r.id === rowId);
-    if (!row) return;
+    console.log('Found row:', row);
+    if (!row) {
+        console.error('Row not found for id:', rowId);
+        return;
+    }
 
     let dataName = '';
     const nameHeaders = ['Nama Lengkap', 'Nama', 'Name', 'NAMA LENGKAP', 'NAMA'];
@@ -541,7 +611,12 @@ function showDetail(rowId) {
     }).filter(item => item !== '').join('');
 
     const statusSelect = document.getElementById('statusSelect');
-    const saveStatusBtn = document.getElementById('saveStatusBtn');
+    const flagSelect = document.getElementById('flagSelect');
+    const saveBtn = document.getElementById('saveBtn');
+    
+    saveBtn.textContent = 'Simpan';
+    saveBtn.disabled = false;
+    saveBtn.classList.remove('disabled');
     
     const currentStatus = (row.status || '').trim();
     if (currentStatus) {
@@ -549,28 +624,73 @@ function showDetail(rowId) {
     } else {
         statusSelect.value = 'Open';
     }
+    
+    const currentFlag = (row.flag || '').trim();
+    if (currentFlag) {
+        flagSelect.value = currentFlag;
+    } else {
+        flagSelect.value = 'Hijau';
+    }
+    
     currentDetailRow = row;
     
-    function checkStatusChange() {
+    function checkChanges() {
         const selectedStatus = statusSelect.value;
+        const selectedFlag = flagSelect.value;
         const originalStatus = (currentStatus || '').trim();
+        const originalFlag = (currentFlag || '').trim();
         
-        if (selectedStatus === originalStatus && originalStatus !== '') {
-            saveStatusBtn.disabled = true;
-            saveStatusBtn.classList.add('disabled');
+        const statusChanged = selectedStatus !== originalStatus;
+        const flagChanged = selectedFlag !== originalFlag;
+        
+        if (statusChanged || flagChanged) {
+            saveBtn.disabled = false;
+            saveBtn.classList.remove('disabled');
         } else {
-            saveStatusBtn.disabled = false;
-            saveStatusBtn.classList.remove('disabled');
+            saveBtn.disabled = true;
+            saveBtn.classList.add('disabled');
         }
     }
     
-    statusSelect.addEventListener('change', checkStatusChange);
-    checkStatusChange();
+    statusSelect.onchange = checkChanges;
+    flagSelect.onchange = checkChanges;
+    checkChanges();
     
-    saveStatusBtn.onclick = () => {
+    saveBtn.onclick = async () => {
+        if (saveBtn.disabled) return;
+        
         const newStatus = statusSelect.value;
-        if (newStatus && !saveStatusBtn.disabled) {
-            updateStatus(row.rowNumber, newStatus);
+        const newFlag = flagSelect.value;
+        
+        try {
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Menyimpan...';
+            
+            const promises = [];
+            
+            if (newStatus !== currentStatus) {
+                promises.push(updateStatus(row.rowNumber, newStatus));
+            }
+            
+            if (newFlag !== currentFlag) {
+                promises.push(updateFlag(row.rowNumber, newFlag));
+            }
+            
+            await Promise.all(promises);
+            
+            showNotification('Data berhasil diupdate!', 'success');
+            
+            setTimeout(() => {
+                loadData();
+                setTimeout(() => {
+                    closePopup();
+                }, 500);
+            }, 1500);
+        } catch (error) {
+            console.error('Error saving:', error);
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Simpan';
+            showNotification('Error: ' + error.message, 'error');
         }
     };
 
@@ -582,74 +702,97 @@ function showDetail(rowId) {
 let currentDetailRow = null;
 
 async function updateStatus(rowNumber, status) {
+    console.log('Updating status:', { rowNumber, status });
+    
+    const url = new URL(APPS_SCRIPT_URL);
+    url.searchParams.append('action', 'updateStatus');
+    url.searchParams.append('rowNumber', rowNumber);
+    url.searchParams.append('status', status);
+    
+    let result;
     try {
-        const saveBtn = document.getElementById('saveStatusBtn');
-        saveBtn.disabled = true;
-        saveBtn.textContent = 'Menyimpan...';
-        
-        console.log('Updating status:', { rowNumber, status });
-        
-        const url = new URL(APPS_SCRIPT_URL);
-        url.searchParams.append('action', 'updateStatus');
-        url.searchParams.append('rowNumber', rowNumber);
-        url.searchParams.append('status', status);
-        
-        let result;
-        try {
-            const response = await fetch(url.toString(), {
-                method: 'GET',
-                mode: 'cors',
-                cache: 'no-cache'
-            });
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-cache'
+        });
 
-            console.log('Response status:', response.status);
-            console.log('Response ok:', response.ok);
+        console.log('Response status:', response.status);
+        console.log('Response ok:', response.ok);
 
-            if (!response.ok) {
-                throw new Error('HTTP Error: ' + response.status);
-            }
-
-            const text = await response.text();
-            console.log('Response text:', text);
-            result = JSON.parse(text);
-            console.log('Parsed result:', result);
-        } catch (e) {
-            console.error('Fetch error:', e);
-            throw new Error('Gagal mengupdate status: ' + e.message);
+        if (!response.ok) {
+            throw new Error('HTTP Error: ' + response.status);
         }
 
-        if (!result.success) {
-            throw new Error(result.error || 'Gagal mengupdate status');
-        }
-
-        if (currentDetailRow) {
-            currentDetailRow.status = status;
-            const rowIndex = allData.findIndex(r => r.id === currentDetailRow.id);
-            if (rowIndex !== -1) {
-                allData[rowIndex].status = status;
-            }
-        }
-
-        filterAndDisplayData();
-        
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'Simpan Status';
-        
-        showNotification('Status berhasil diupdate!', 'success');
-        
-        setTimeout(() => {
-            loadData();
-            setTimeout(() => {
-                closePopup();
-            }, 500);
-        }, 1500);
-    } catch (error) {
-        console.error('Error updating status:', error);
-        const saveBtn = document.getElementById('saveStatusBtn');
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'Simpan Status';
-        showNotification('Error: ' + error.message, 'error');
+        const text = await response.text();
+        console.log('Response text:', text);
+        result = JSON.parse(text);
+        console.log('Parsed result:', result);
+    } catch (e) {
+        console.error('Fetch error:', e);
+        throw new Error('Gagal mengupdate status: ' + e.message);
     }
+
+    if (!result.success) {
+        throw new Error(result.error || 'Gagal mengupdate status');
+    }
+
+    if (currentDetailRow) {
+        currentDetailRow.status = status;
+        const rowIndex = allData.findIndex(r => r.id === currentDetailRow.id);
+        if (rowIndex !== -1) {
+            allData[rowIndex].status = status;
+        }
+    }
+
+    filterAndDisplayData();
+}
+
+async function updateFlag(rowNumber, flag) {
+    console.log('Updating flag:', { rowNumber, flag });
+    
+    const url = new URL(APPS_SCRIPT_URL);
+    url.searchParams.append('action', 'updateFlag');
+    url.searchParams.append('rowNumber', rowNumber);
+    url.searchParams.append('flag', flag);
+    
+    let result;
+    try {
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-cache'
+        });
+
+        console.log('Response status:', response.status);
+        console.log('Response ok:', response.ok);
+
+        if (!response.ok) {
+            throw new Error('HTTP Error: ' + response.status);
+        }
+
+        const text = await response.text();
+        console.log('Response text:', text);
+        result = JSON.parse(text);
+        console.log('Parsed result:', result);
+    } catch (e) {
+        console.error('Fetch error:', e);
+        throw new Error('Gagal mengupdate flag: ' + e.message);
+    }
+
+    if (!result.success) {
+        throw new Error(result.error || 'Gagal mengupdate flag');
+    }
+
+    if (currentDetailRow) {
+        currentDetailRow.flag = flag;
+        const rowIndex = allData.findIndex(r => r.id === currentDetailRow.id);
+        if (rowIndex !== -1) {
+            allData[rowIndex].flag = flag;
+        }
+    }
+
+    filterAndDisplayData();
 }
 
 function showNotification(message, type = 'success') {

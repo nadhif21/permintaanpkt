@@ -67,11 +67,12 @@
                         <th>Kolom F</th>
                         <th>Kolom G</th>
                         <th>Status</th>
+                        <th>Flag</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody">
                     <tr>
-                        <td colspan="7" class="loading">Memuat data...</td>
+                        <td colspan="8" class="loading">Memuat data...</td>
                     </tr>
                 </tbody>
             </table>
@@ -84,13 +85,25 @@
             <span class="close-btn">&times;</span>
             <h2>Detail Data</h2>
             <div id="detailContent" class="detail-content"></div>
-            <div id="statusSection" class="status-section">
-                <label for="statusSelect">Status:</label>
-                <select id="statusSelect" class="status-select">
-                    <option value="Open" selected>Open</option>
-                    <option value="Closed">Closed</option>
-                </select>
-                <button id="saveStatusBtn" class="save-status-btn">Simpan Status</button>
+            <div class="status-flag-container">
+                <div id="statusSection" class="status-section">
+                    <label for="statusSelect">Status:</label>
+                    <select id="statusSelect" class="status-select">
+                        <option value="Open" selected>Open</option>
+                        <option value="Closed">Closed</option>
+                    </select>
+                </div>
+                <div id="flagSection" class="status-section">
+                    <label for="flagSelect">Flag:</label>
+                    <select id="flagSelect" class="status-select">
+                        <option value="Hijau">Hijau</option>
+                        <option value="Kuning">Kuning</option>
+                        <option value="Merah">Merah</option>
+                    </select>
+                </div>
+                <div class="save-button-container">
+                    <button id="saveBtn" class="save-status-btn">Simpan</button>
+                </div>
             </div>
             <div id="popupNotification" class="popup-notification"></div>
         </div>

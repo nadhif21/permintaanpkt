@@ -417,14 +417,28 @@ tbody td {
     word-break: break-word;
 }
 
-.status-section {
+.status-flag-container {
     margin-top: 30px;
     padding-top: 24px;
     border-top: 2px solid #e0e0e0;
     display: flex;
+    gap: 30px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.status-section {
+    display: flex;
     align-items: center;
     gap: 15px;
     flex-wrap: wrap;
+    flex: 1;
+    min-width: 250px;
+}
+
+.save-button-container {
+    display: flex;
+    align-items: center;
 }
 
 .status-section label {
@@ -507,6 +521,36 @@ tbody td {
 }
 
 .status-empty {
+    background-color: #e0e0e0;
+    color: #666;
+}
+
+.flag-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.flag-hijau {
+    background-color: #4caf50;
+    color: white;
+}
+
+.flag-kuning {
+    background-color: #ffc107;
+    color: #333;
+}
+
+.flag-merah {
+    background-color: #f44336;
+    color: white;
+}
+
+.flag-empty {
     background-color: #e0e0e0;
     color: #666;
 }
@@ -643,10 +687,16 @@ tbody td {
         font-size: 1.3rem;
     }
 
+    .status-flag-container {
+        flex-direction: column;
+        gap: 20px;
+    }
+
     .status-section {
         flex-direction: column;
         align-items: stretch;
         gap: 12px;
+        min-width: 100%;
     }
 
     .status-select {
