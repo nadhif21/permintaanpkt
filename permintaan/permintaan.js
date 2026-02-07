@@ -90,15 +90,12 @@ async function loadData() {
             throw new Error('URL Apps Script belum dikonfigurasi. Silakan isi APPS_SCRIPT_URL di script.js');
         }
 
-        console.log('Loading fresh data from server...');
-        
         allData = [];
         filteredData = [];
         
         const url = new URL(APPS_SCRIPT_URL);
         url.searchParams.append('action', 'getData');
         url.searchParams.append('_t', Date.now());
-        url.searchParams.append('_r', Math.random());
         
         let response;
         try {
@@ -138,7 +135,6 @@ async function loadData() {
         spreadsheetHeaders = headers;
         updateTableHeaders();
         
-        console.log('Clearing old data and loading new data from server...');
         allData = [];
         filteredData = [];
         
@@ -178,35 +174,12 @@ async function loadData() {
             };
         });
 
-        console.log('Raw data from server - first row status:', result.data[0]?.Status || result.data[0]?.status || 'not found');
-        
         const sortedData = sortDataByTimestamp([...allData]);
         allData = sortedData;
         filteredData = [];
         
-        console.log('Data loaded from server, total rows:', allData.length);
-        if (allData.length > 0) {
-            console.log('First row after sort - status:', allData[0].status, 'rowNumber:', allData[0].rowNumber, 'NPK:', allData[0].B);
-            const testRow = allData.find(r => r.B === 'KNEB241343');
-            if (testRow) {
-                console.log('Row with NPK KNEB241343:', {
-                    id: testRow.id,
-                    rowNumber: testRow.rowNumber,
-                    originalRowNumber: testRow.originalRowNumber,
-                    status: testRow.status,
-                    flag: testRow.flag,
-                    petugas: testRow.petugas,
-                    waktuSelesai: testRow.waktuSelesai
-                });
-            } else {
-                console.log('Row with NPK KNEB241343 NOT FOUND in loaded data!');
-            }
-        }
-
         setupFilterOptions();
         filterAndDisplayData();
-        
-        console.log('Data completely refreshed and displayed. Old data cleared.');
     } catch (error) {
         console.error('Error loading data:', error);
         document.getElementById('tableBody').innerHTML = 
@@ -228,7 +201,6 @@ function findColumnValue(row, columnName) {
             return kLower === 'status' && kLower !== 'status surat';
         });
         if (key) {
-            console.log(`Found exact "Status" column: "${key}" =`, row[key]);
             return row[key] || '';
         }
         key = keys.find(k => {
@@ -236,14 +208,12 @@ function findColumnValue(row, columnName) {
             return kLower === 'status' && !kLower.includes('surat');
         });
         if (key) {
-            console.log(`Found "Status" column (not "Status Surat"): "${key}" =`, row[key]);
             return row[key] || '';
         }
     }
     
     let key = keys.find(k => k.toLowerCase().trim() === searchName);
     if (key) {
-        console.log(`Found exact match for "${columnName}": "${key}" =`, row[key]);
         return row[key] || '';
     }
     
@@ -252,7 +222,6 @@ function findColumnValue(row, columnName) {
         return kLower.includes(searchName) && !(searchName === 'status' && kLower.includes('surat'));
     });
     if (key) {
-        console.log(`Found partial match for "${columnName}": "${key}" =`, row[key]);
         return row[key] || '';
     }
     
@@ -490,7 +459,6 @@ function displayTable() {
                 }
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('Row clicked, rowId:', rowId);
                 showDetail(rowId);
             });
         }
@@ -549,7 +517,6 @@ function displayCards() {
             card.addEventListener('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('Card clicked, rowId:', rowId);
                 showDetail(rowId);
             });
         }
@@ -655,11 +622,8 @@ function updateTableHeaders() {
 }
 
 function showDetail(rowId) {
-    console.log('showDetail called with rowId:', rowId);
     const row = allData.find(r => r.id === rowId);
-    console.log('Found row:', row);
     if (!row) {
-        console.error('Row not found for id:', rowId);
         return;
     }
 
@@ -905,10 +869,7 @@ function showDetail(rowId) {
     petugasSelect.onchange = checkChanges;
     
     toggleDropdowns();
-    
-    setTimeout(() => {
-        checkChanges();
-    }, 0);
+    checkChanges();
     
     saveBtn.onclick = async () => {
         if (saveBtn.disabled) return;
@@ -922,51 +883,31 @@ function showDetail(rowId) {
             saveBtn.textContent = 'Menyimpan...';
             
             const rowNumberToUpdate = row.originalRowNumber || row.rowNumber;
-            console.log('=== UPDATE INFO ===');
-            console.log('Row data:', {
-                id: row.id,
-                rowNumber: row.rowNumber,
-                originalRowNumber: row.originalRowNumber,
-                NPK: row.B,
-                currentStatus: currentStatus,
-                newStatus: newStatus
-            });
-            console.log('Using rowNumber for update:', rowNumberToUpdate);
-            console.log('===================');
-            
             const promises = [];
             
             if (newStatus !== currentStatus) {
-                console.log('Updating status from', currentStatus, 'to', newStatus, 'on row', rowNumberToUpdate);
                 promises.push(updateStatus(rowNumberToUpdate, newStatus));
-            } else {
-                console.log('Status unchanged, skipping update');
             }
             
             const isClosedOrCancelled = newStatus === 'Closed' || newStatus === 'Cancelled';
             
             if (isClosedOrCancelled) {
                 if (newFlag !== currentFlag) {
-                    console.log('Updating flag from', currentFlag, 'to', newFlag, 'on row', rowNumberToUpdate);
                     promises.push(updateFlag(rowNumberToUpdate, newFlag));
                 }
                 
                 if (newPetugas !== currentPetugas) {
-                    console.log('Updating petugas from', currentPetugas, 'to', newPetugas, 'on row', rowNumberToUpdate);
                     promises.push(updatePetugas(rowNumberToUpdate, newPetugas));
                 }
                 
-                if (isClosedOrCancelled && !currentWaktuSelesai) {
+                if (!currentWaktuSelesai) {
                     const now = new Date();
                     const waktuSelesai = now.toISOString();
-                    console.log('Updating waktu selesai on row', rowNumberToUpdate);
                     promises.push(updateWaktuSelesai(rowNumberToUpdate, waktuSelesai));
                 }
             }
             
             await Promise.all(promises);
-            
-            console.log('All updates completed, waiting before reload...');
             
             saveBtn.textContent = 'Memuat ulang...';
             saveBtn.disabled = true;
@@ -974,33 +915,26 @@ function showDetail(rowId) {
             
             showNotification('Data berhasil diupdate! Memuat ulang data...', 'success');
             
-            setTimeout(async () => {
-                console.log('Clearing all local data...');
-                allData = [];
-                filteredData = [];
-                currentDetailRow = null;
-                
-                console.log('Force reloading data from server (no cache)...');
-                try {
-                    await loadData();
-                    console.log('Data reloaded successfully from server');
-                    
-                    showNotification('Data berhasil diupdate!', 'success');
-                    
-                    setTimeout(() => {
-                        closePopup();
-                    }, 1000);
-                } catch (error) {
-                    console.error('Error reloading data:', error);
-                    showNotification('Data diupdate tapi gagal reload. Silakan refresh halaman.', 'error');
-                    saveBtn.textContent = 'Simpan';
-                    saveBtn.disabled = false;
-                    saveBtn.classList.remove('disabled');
-                    setTimeout(() => {
-                        closePopup();
-                    }, 2000);
-                }
-            }, 2000);
+            allData = [];
+            filteredData = [];
+            currentDetailRow = null;
+            
+            try {
+                await loadData();
+                showNotification('Data berhasil diupdate!', 'success');
+                setTimeout(() => {
+                    closePopup();
+                }, 500);
+            } catch (error) {
+                console.error('Error reloading data:', error);
+                showNotification('Data diupdate tapi gagal reload. Silakan refresh halaman.', 'error');
+                saveBtn.textContent = 'Simpan';
+                saveBtn.disabled = false;
+                saveBtn.classList.remove('disabled');
+                setTimeout(() => {
+                    closePopup();
+                }, 1500);
+            }
         } catch (error) {
             console.error('Error saving:', error);
             saveBtn.disabled = false;
@@ -1017,8 +951,6 @@ function showDetail(rowId) {
 let currentDetailRow = null;
 
 async function updateStatus(rowNumber, status) {
-    console.log('Updating status:', { rowNumber, status, currentDetailRow: currentDetailRow });
-    
     if (!rowNumber || isNaN(rowNumber)) {
         throw new Error('RowNumber tidak valid: ' + rowNumber);
     }
@@ -1027,72 +959,43 @@ async function updateStatus(rowNumber, status) {
     url.searchParams.append('action', 'updateStatus');
     url.searchParams.append('rowNumber', rowNumber);
     url.searchParams.append('status', status);
-    url.searchParams.append('_t', Date.now());
     
-    let result;
-    try {
-        const response = await fetch(url.toString(), {
-            method: 'GET',
-            mode: 'cors',
-            cache: 'no-cache'
-        });
+    const response = await fetch(url.toString(), {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-cache'
+    });
 
-        console.log('Response status:', response.status);
-        console.log('Response ok:', response.ok);
-
-        if (!response.ok) {
-            throw new Error('HTTP Error: ' + response.status);
-        }
-
-        const text = await response.text();
-        console.log('Response text:', text);
-        result = JSON.parse(text);
-        console.log('Parsed result:', result);
-    } catch (e) {
-        console.error('Fetch error:', e);
-        throw new Error('Gagal mengupdate status: ' + e.message);
+    if (!response.ok) {
+        throw new Error('HTTP Error: ' + response.status);
     }
+
+    const result = await response.json();
 
     if (!result.success) {
         throw new Error(result.error || 'Gagal mengupdate status');
     }
-
-    console.log('Status berhasil diupdate di spreadsheet, rowNumber:', rowNumber, 'status:', status);
     
     return result;
 }
 
 async function updateFlag(rowNumber, flag) {
-    console.log('Updating flag:', { rowNumber, flag });
-    
     const url = new URL(APPS_SCRIPT_URL);
     url.searchParams.append('action', 'updateFlag');
     url.searchParams.append('rowNumber', rowNumber);
     url.searchParams.append('flag', flag);
     
-    let result;
-    try {
-        const response = await fetch(url.toString(), {
-            method: 'GET',
-            mode: 'cors',
-            cache: 'no-cache'
-        });
+    const response = await fetch(url.toString(), {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-cache'
+    });
 
-        console.log('Response status:', response.status);
-        console.log('Response ok:', response.ok);
-
-        if (!response.ok) {
-            throw new Error('HTTP Error: ' + response.status);
-        }
-
-        const text = await response.text();
-        console.log('Response text:', text);
-        result = JSON.parse(text);
-        console.log('Parsed result:', result);
-    } catch (e) {
-        console.error('Fetch error:', e);
-        throw new Error('Gagal mengupdate flag: ' + e.message);
+    if (!response.ok) {
+        throw new Error('HTTP Error: ' + response.status);
     }
+
+    const result = await response.json();
 
     if (!result.success) {
         throw new Error(result.error || 'Gagal mengupdate flag');
@@ -1102,36 +1005,22 @@ async function updateFlag(rowNumber, flag) {
 }
 
 async function updatePetugas(rowNumber, petugas) {
-    console.log('Updating petugas:', { rowNumber, petugas });
-    
     const url = new URL(APPS_SCRIPT_URL);
     url.searchParams.append('action', 'updatePetugas');
     url.searchParams.append('rowNumber', rowNumber);
     url.searchParams.append('petugas', petugas);
     
-    let result;
-    try {
-        const response = await fetch(url.toString(), {
-            method: 'GET',
-            mode: 'cors',
-            cache: 'no-cache'
-        });
+    const response = await fetch(url.toString(), {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-cache'
+    });
 
-        console.log('Response status:', response.status);
-        console.log('Response ok:', response.ok);
-
-        if (!response.ok) {
-            throw new Error('HTTP Error: ' + response.status);
-        }
-
-        const text = await response.text();
-        console.log('Response text:', text);
-        result = JSON.parse(text);
-        console.log('Parsed result:', result);
-    } catch (e) {
-        console.error('Fetch error:', e);
-        throw new Error('Gagal mengupdate petugas: ' + e.message);
+    if (!response.ok) {
+        throw new Error('HTTP Error: ' + response.status);
     }
+
+    const result = await response.json();
 
     if (!result.success) {
         throw new Error(result.error || 'Gagal mengupdate petugas');
@@ -1141,36 +1030,22 @@ async function updatePetugas(rowNumber, petugas) {
 }
 
 async function updateWaktuSelesai(rowNumber, waktuSelesai) {
-    console.log('Updating waktu selesai:', { rowNumber, waktuSelesai });
-    
     const url = new URL(APPS_SCRIPT_URL);
     url.searchParams.append('action', 'updateWaktuSelesai');
     url.searchParams.append('rowNumber', rowNumber);
     url.searchParams.append('waktuSelesai', waktuSelesai);
     
-    let result;
-    try {
-        const response = await fetch(url.toString(), {
-            method: 'GET',
-            mode: 'cors',
-            cache: 'no-cache'
-        });
+    const response = await fetch(url.toString(), {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-cache'
+    });
 
-        console.log('Response status:', response.status);
-        console.log('Response ok:', response.ok);
-
-        if (!response.ok) {
-            throw new Error('HTTP Error: ' + response.status);
-        }
-
-        const text = await response.text();
-        console.log('Response text:', text);
-        result = JSON.parse(text);
-        console.log('Parsed result:', result);
-    } catch (e) {
-        console.error('Fetch error:', e);
-        throw new Error('Gagal mengupdate waktu selesai: ' + e.message);
+    if (!response.ok) {
+        throw new Error('HTTP Error: ' + response.status);
     }
+
+    const result = await response.json();
 
     if (!result.success) {
         throw new Error(result.error || 'Gagal mengupdate waktu selesai');
