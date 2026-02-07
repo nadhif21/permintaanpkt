@@ -288,19 +288,20 @@ function displayData() {
 
 function displayTable() {
     const tbody = document.getElementById('tableBody');
-    const cells = filteredData.map(row => [
-        highlightText(row.A || ''),
-        highlightText(row.B || ''),
-        highlightText(row.C || ''),
-        highlightText(row.D || ''),
-        highlightText(row.F || ''),
-        highlightText(row.G || '')
-    ]);
+    const displayColumns = [0, 1, 2, 3, 5, 6];
+    
+    tbody.innerHTML = filteredData.map((row) => {
+        const cells = displayColumns.map(index => {
+            const headerName = spreadsheetHeaders[index] || `Kolom ${String.fromCharCode(65 + index)}`;
+            const colLetter = String.fromCharCode(65 + index);
+            let value = row[colLetter] || '';
+            value = formatValueForDisplay(value, headerName);
+            return highlightText(value);
+        });
 
-    tbody.innerHTML = filteredData.map((row, index) => {
         return `
             <tr onclick="showDetail(${row.id})">
-                ${cells[index].map(cell => `<td>${cell}</td>`).join('')}
+                ${cells.map(cell => `<td>${cell}</td>`).join('')}
             </tr>
         `;
     }).join('');
@@ -314,7 +315,9 @@ function displayCards() {
         const headers = spreadsheetHeaders;
         const cardRows = displayColumns.map(index => {
             const headerName = headers[index] || `Kolom ${String.fromCharCode(65 + index)}`;
-            const value = row[String.fromCharCode(65 + index)] || '';
+            const colLetter = String.fromCharCode(65 + index);
+            let value = row[colLetter] || '';
+            value = formatValueForDisplay(value, headerName);
             return `
                 <div class="card-row">
                     <div class="card-label">${escapeHtml(headerName)}</div>
@@ -338,7 +341,22 @@ window.addEventListener('resize', () => {
 });
 
 function highlightText(text) {
-    if (!searchTerm || !text) {
+    if (!text) return '';
+    
+    if (typeof text !== 'string') {
+        text = String(text);
+    }
+    
+    if (text.includes('<br>')) {
+        const parts = text.split('<br>');
+        return parts.map(part => {
+            if (!searchTerm) return escapeHtml(part);
+            const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
+            return escapeHtml(part).replace(regex, '<span class="highlight">$1</span>');
+        }).join('<br>');
+    }
+    
+    if (!searchTerm) {
         return escapeHtml(text);
     }
 
@@ -354,6 +372,42 @@ function escapeHtml(text) {
 
 function escapeRegex(str) {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function formatTimestamp(timestamp) {
+    if (!timestamp) return '';
+    
+    try {
+        const date = new Date(timestamp);
+        if (isNaN(date.getTime())) return timestamp;
+        
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        
+        return `${day}-${month}-${year}<br>${hours}:${minutes}:${seconds}`;
+    } catch (e) {
+        return timestamp;
+    }
+}
+
+function formatValueForDisplay(value, headerName) {
+    if (!value || value === '') return '';
+    
+    const isTimestamp = headerName && (
+        headerName.toLowerCase().includes('timestamp') || 
+        headerName.toLowerCase().includes('waktu') ||
+        headerName.toLowerCase().includes('tanggal')
+    );
+    
+    if (isTimestamp) {
+        return formatTimestamp(value);
+    }
+    
+    return value;
 }
 
 function updateResultCount() {
@@ -407,14 +461,26 @@ function showDetail(rowId) {
     detailContent.innerHTML = columns.map((col) => {
         const colIndex = col.charCodeAt(0) - 65;
         const headerName = spreadsheetHeaders[colIndex] || `Kolom ${col}`;
-        const value = row[col];
+        let value = row[col];
         
         if (!value || value === '') return '';
+        
+        const isTimestamp = headerName && (
+            headerName.toLowerCase().includes('timestamp') || 
+            headerName.toLowerCase().includes('waktu') ||
+            headerName.toLowerCase().includes('tanggal')
+        );
+        
+        if (isTimestamp) {
+            value = formatTimestamp(value);
+        } else {
+            value = escapeHtml(value);
+        }
         
         return `
             <div class="detail-item">
                 <label>${escapeHtml(headerName)}</label>
-                <div class="value">${escapeHtml(value)}</div>
+                <div class="value">${value}</div>
             </div>
         `;
     }).filter(item => item !== '').join('');
