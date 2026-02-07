@@ -90,11 +90,30 @@ async function loadData() {
             throw new Error('URL Apps Script belum dikonfigurasi. Silakan isi APPS_SCRIPT_URL di script.js');
         }
 
-        const response = await fetch(APPS_SCRIPT_URL, {
-            method: 'GET',
-            mode: 'cors',
-            cache: 'no-cache'
-        });
+        console.log('Loading fresh data from server...');
+        
+        allData = [];
+        filteredData = [];
+        
+        const url = new URL(APPS_SCRIPT_URL);
+        url.searchParams.append('action', 'getData');
+        url.searchParams.append('_t', Date.now());
+        url.searchParams.append('_r', Math.random());
+        
+        let response;
+        try {
+            response = await fetch(url.toString(), {
+                method: 'GET',
+                mode: 'cors',
+                cache: 'no-cache'
+            });
+        } catch (fetchError) {
+            console.error('Fetch error details:', fetchError);
+            if (fetchError.message.includes('CORS') || fetchError.message.includes('Failed to fetch')) {
+                throw new Error('CORS Error: Pastikan Apps Script sudah di-deploy sebagai Web App dengan "Who has access: Anyone". Silakan update deployment di Apps Script Editor.');
+            }
+            throw new Error('Tidak dapat terhubung ke Apps Script: ' + fetchError.message);
+        }
 
         if (!response) {
             throw new Error('Tidak dapat terhubung ke Apps Script. Pastikan URL benar dan Apps Script sudah di-deploy.');
@@ -119,6 +138,10 @@ async function loadData() {
         spreadsheetHeaders = headers;
         updateTableHeaders();
         
+        console.log('Clearing old data and loading new data from server...');
+        allData = [];
+        filteredData = [];
+        
         allData = result.data.map((row, index) => {
             const getColumnValue = (position) => {
                 if (position < headers.length) {
@@ -128,9 +151,12 @@ async function loadData() {
                 return '';
             };
 
+            const originalRowNumber = row.rowNumber || (index + 2);
+            
             return {
                 id: index,
-                rowNumber: index + 2,
+                rowNumber: originalRowNumber,
+                originalRowNumber: originalRowNumber,
                 A: getColumnValue(0),
                 B: getColumnValue(1),
                 C: getColumnValue(2),
@@ -145,15 +171,42 @@ async function loadData() {
                 L: getColumnValue(11),
                 pilihPermintaan: findColumnValue(row, 'Pilih Permintaan'),
                 timestamp: findColumnValue(row, 'Timestamp'),
-                status: findColumnValue(row, 'Status') || '',
-                flag: findColumnValue(row, 'Flag') || ''
+                status: (findColumnValue(row, 'Status') || '').trim(),
+                flag: (findColumnValue(row, 'Flag') || '').trim(),
+                petugas: (findColumnValue(row, 'Petugas') || '').trim(),
+                waktuSelesai: (findColumnValue(row, 'Waktu Selesai') || '').trim()
             };
         });
 
-        allData = sortDataByTimestamp(allData);
+        console.log('Raw data from server - first row status:', result.data[0]?.Status || result.data[0]?.status || 'not found');
+        
+        const sortedData = sortDataByTimestamp([...allData]);
+        allData = sortedData;
+        filteredData = [];
+        
+        console.log('Data loaded from server, total rows:', allData.length);
+        if (allData.length > 0) {
+            console.log('First row after sort - status:', allData[0].status, 'rowNumber:', allData[0].rowNumber, 'NPK:', allData[0].B);
+            const testRow = allData.find(r => r.B === 'KNEB241343');
+            if (testRow) {
+                console.log('Row with NPK KNEB241343:', {
+                    id: testRow.id,
+                    rowNumber: testRow.rowNumber,
+                    originalRowNumber: testRow.originalRowNumber,
+                    status: testRow.status,
+                    flag: testRow.flag,
+                    petugas: testRow.petugas,
+                    waktuSelesai: testRow.waktuSelesai
+                });
+            } else {
+                console.log('Row with NPK KNEB241343 NOT FOUND in loaded data!');
+            }
+        }
 
         setupFilterOptions();
         filterAndDisplayData();
+        
+        console.log('Data completely refreshed and displayed. Old data cleared.');
     } catch (error) {
         console.error('Error loading data:', error);
         document.getElementById('tableBody').innerHTML = 
@@ -169,12 +222,41 @@ function findColumnValue(row, columnName) {
     const keys = Object.keys(row);
     const searchName = columnName.toLowerCase().trim();
     
+    if (searchName === 'status') {
+        let key = keys.find(k => {
+            const kLower = k.toLowerCase().trim();
+            return kLower === 'status' && kLower !== 'status surat';
+        });
+        if (key) {
+            console.log(`Found exact "Status" column: "${key}" =`, row[key]);
+            return row[key] || '';
+        }
+        key = keys.find(k => {
+            const kLower = k.toLowerCase().trim();
+            return kLower === 'status' && !kLower.includes('surat');
+        });
+        if (key) {
+            console.log(`Found "Status" column (not "Status Surat"): "${key}" =`, row[key]);
+            return row[key] || '';
+        }
+    }
+    
     let key = keys.find(k => k.toLowerCase().trim() === searchName);
-    if (key) return row[key];
+    if (key) {
+        console.log(`Found exact match for "${columnName}": "${key}" =`, row[key]);
+        return row[key] || '';
+    }
     
-    key = keys.find(k => k.toLowerCase().includes(searchName) || searchName.includes(k.toLowerCase()));
-    if (key) return row[key];
+    key = keys.find(k => {
+        const kLower = k.toLowerCase();
+        return kLower.includes(searchName) && !(searchName === 'status' && kLower.includes('surat'));
+    });
+    if (key) {
+        console.log(`Found partial match for "${columnName}": "${key}" =`, row[key]);
+        return row[key] || '';
+    }
     
+    console.warn(`Column "${columnName}" not found. Available keys:`, keys);
     return '';
 }
 
@@ -316,6 +398,24 @@ function getStatusColumnIndex() {
 function getFlagColumnIndex() {
     for (let i = 0; i < spreadsheetHeaders.length; i++) {
         if (spreadsheetHeaders[i] && spreadsheetHeaders[i].toLowerCase().includes('flag')) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+function getPetugasColumnIndex() {
+    for (let i = 0; i < spreadsheetHeaders.length; i++) {
+        if (spreadsheetHeaders[i] && spreadsheetHeaders[i].toLowerCase().includes('petugas')) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+function getWaktuSelesaiColumnIndex() {
+    for (let i = 0; i < spreadsheetHeaders.length; i++) {
+        if (spreadsheetHeaders[i] && (spreadsheetHeaders[i].toLowerCase().includes('waktu selesai') || spreadsheetHeaders[i].toLowerCase().includes('waktuselesai'))) {
             return i;
         }
     }
@@ -519,13 +619,16 @@ function formatTimestamp(timestamp) {
 function formatValueForDisplay(value, headerName) {
     if (!value || value === '') return '';
     
-    const isTimestamp = headerName && (
-        headerName.toLowerCase().includes('timestamp') || 
-        headerName.toLowerCase().includes('waktu') ||
-        headerName.toLowerCase().includes('tanggal')
-    );
+    if (!headerName) return value;
     
-    if (isTimestamp) {
+    const headerLower = headerName.toLowerCase();
+    const isTimestamp = headerLower.includes('timestamp') || 
+                        (headerLower.includes('waktu') && !headerLower.includes('selesai')) ||
+                        headerLower.includes('tanggal');
+    
+    const isWaktuSelesai = headerLower.includes('waktu selesai') || headerLower.includes('waktuselesai');
+    
+    if (isTimestamp || isWaktuSelesai) {
         return formatTimestamp(value);
     }
     
@@ -586,8 +689,28 @@ function showDetail(rowId) {
     }
 
     const detailContent = document.getElementById('detailContent');
-    const columns = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
     const statusColIndex = getStatusColumnIndex();
+    const flagColIndex = getFlagColumnIndex();
+    const petugasColIndex = getPetugasColumnIndex();
+    const waktuSelesaiColIndex = getWaktuSelesaiColumnIndex();
+    
+    const currentStatus = (row.status || '').trim();
+    const currentFlag = (row.flag || '').trim();
+    const currentPetugas = (row.petugas || '').trim();
+    const currentWaktuSelesai = (row.waktuSelesai || '').trim();
+    
+    const isCompleted = (currentStatus === 'Closed' || currentStatus === 'Cancelled') && 
+                        currentFlag && currentPetugas;
+    
+    let maxColIndex = spreadsheetHeaders.length;
+    if (isCompleted && waktuSelesaiColIndex !== -1) {
+        maxColIndex = waktuSelesaiColIndex + 1;
+    }
+    
+    const columns = [];
+    for (let i = 0; i < maxColIndex; i++) {
+        columns.push(String.fromCharCode(65 + i));
+    }
     
     detailContent.innerHTML = columns.map((col) => {
         const colIndex = col.charCodeAt(0) - 65;
@@ -596,17 +719,23 @@ function showDetail(rowId) {
             headerName = 'Jenis Permintaan';
         }
         
-        if (colIndex === statusColIndex) {
+        if (colIndex === statusColIndex || colIndex === flagColIndex || 
+            colIndex === petugasColIndex) {
             return '';
         }
         
         let value = row[col];
         
-        if (!value || value === '') return '';
+        if (!value || value === '') {
+            if (colIndex === waktuSelesaiColIndex && isCompleted) {
+                return '';
+            }
+            return '';
+        }
         
         const isTimestamp = headerName && (
             headerName.toLowerCase().includes('timestamp') || 
-            headerName.toLowerCase().includes('waktu') ||
+            (headerName.toLowerCase().includes('waktu') && !headerName.toLowerCase().includes('selesai')) ||
             headerName.toLowerCase().includes('tanggal')
         );
         
@@ -623,41 +752,142 @@ function showDetail(rowId) {
             </div>
         `;
     }).filter(item => item !== '').join('');
+    
+    if (isCompleted) {
+        const statusHeader = spreadsheetHeaders[statusColIndex] || 'Status';
+        const flagHeader = spreadsheetHeaders[flagColIndex] || 'Flag';
+        const petugasHeader = spreadsheetHeaders[petugasColIndex] || 'Petugas';
+        
+        detailContent.innerHTML += `
+            <div class="detail-item">
+                <label>${escapeHtml(statusHeader)}</label>
+                <div class="value">${formatStatus(currentStatus)}</div>
+            </div>
+            <div class="detail-item">
+                <label>${escapeHtml(flagHeader)}</label>
+                <div class="value">${formatFlag(currentFlag)}</div>
+            </div>
+            <div class="detail-item">
+                <label>${escapeHtml(petugasHeader)}</label>
+                <div class="value">${escapeHtml(currentPetugas)}</div>
+            </div>
+        `;
+        
+        if (currentWaktuSelesai) {
+            const waktuSelesaiHeader = spreadsheetHeaders[waktuSelesaiColIndex] || 'Waktu Selesai';
+            let waktuSelesaiValue = formatTimestamp(currentWaktuSelesai);
+            if (!waktuSelesaiValue || waktuSelesaiValue === currentWaktuSelesai || !waktuSelesaiValue.includes(':')) {
+                try {
+                    const date = new Date(currentWaktuSelesai);
+                    if (!isNaN(date.getTime())) {
+                        const day = String(date.getDate()).padStart(2, '0');
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const year = date.getFullYear();
+                        const hours = String(date.getHours()).padStart(2, '0');
+                        const minutes = String(date.getMinutes()).padStart(2, '0');
+                        const seconds = String(date.getSeconds()).padStart(2, '0');
+                        waktuSelesaiValue = `${day}-${month}-${year}<br>${hours}:${minutes}:${seconds}`;
+                    } else {
+                        waktuSelesaiValue = escapeHtml(currentWaktuSelesai);
+                    }
+                } catch (e) {
+                    waktuSelesaiValue = escapeHtml(currentWaktuSelesai);
+                }
+            }
+            detailContent.innerHTML += `
+                <div class="detail-item">
+                    <label>${escapeHtml(waktuSelesaiHeader)}</label>
+                    <div class="value">${waktuSelesaiValue}</div>
+                </div>
+            `;
+        }
+    }
 
     const statusSelect = document.getElementById('statusSelect');
     const flagSelect = document.getElementById('flagSelect');
+    const petugasSelect = document.getElementById('petugasSelect');
     const saveBtn = document.getElementById('saveBtn');
+    const statusSection = document.getElementById('statusSection');
+    const flagSection = document.getElementById('flagSection');
+    const petugasSection = document.getElementById('petugasSection');
     
     saveBtn.textContent = 'Simpan';
-    saveBtn.disabled = false;
-    saveBtn.classList.remove('disabled');
     
-    const currentStatus = (row.status || '').trim();
     if (currentStatus) {
         statusSelect.value = currentStatus;
     } else {
         statusSelect.value = 'Open';
     }
     
-    const currentFlag = (row.flag || '').trim();
     if (currentFlag) {
         flagSelect.value = currentFlag;
     } else {
         flagSelect.value = 'Hijau';
     }
     
+    if (currentPetugas) {
+        petugasSelect.value = currentPetugas;
+    } else {
+        petugasSelect.value = 'Jalal';
+    }
+    
     currentDetailRow = row;
     
+    function toggleDropdowns() {
+        const selectedStatus = statusSelect.value;
+        const isClosedOrCancelled = selectedStatus === 'Closed' || selectedStatus === 'Cancelled';
+        
+        if (isCompleted) {
+            statusSection.style.display = 'none';
+            flagSection.style.display = 'none';
+            petugasSection.style.display = 'none';
+            saveBtn.style.display = 'none';
+        } else if (isClosedOrCancelled) {
+            statusSection.style.display = 'flex';
+            flagSection.style.display = 'flex';
+            petugasSection.style.display = 'flex';
+            saveBtn.style.display = 'block';
+        } else {
+            statusSection.style.display = 'flex';
+            flagSection.style.display = 'none';
+            petugasSection.style.display = 'none';
+            saveBtn.style.display = 'none';
+        }
+    }
+    
     function checkChanges() {
+        if (isCompleted) {
+            saveBtn.disabled = true;
+            saveBtn.classList.add('disabled');
+            return;
+        }
+        
         const selectedStatus = statusSelect.value;
         const selectedFlag = flagSelect.value;
-        const originalStatus = (currentStatus || '').trim();
-        const originalFlag = (currentFlag || '').trim();
+        const selectedPetugas = petugasSelect.value;
         
-        const statusChanged = selectedStatus !== originalStatus;
-        const flagChanged = selectedFlag !== originalFlag;
+        const statusChanged = selectedStatus !== currentStatus;
+        const flagChanged = selectedFlag !== currentFlag;
+        const petugasChanged = selectedPetugas !== currentPetugas;
         
-        if (statusChanged || flagChanged) {
+        const isClosedOrCancelled = selectedStatus === 'Closed' || selectedStatus === 'Cancelled';
+        
+        let hasChanges = false;
+        
+        if (statusChanged) {
+            hasChanges = true;
+        }
+        
+        if (isClosedOrCancelled) {
+            if (flagChanged || petugasChanged) {
+                hasChanges = true;
+            }
+            if (!currentWaktuSelesai) {
+                hasChanges = true;
+            }
+        }
+        
+        if (hasChanges) {
             saveBtn.disabled = false;
             saveBtn.classList.remove('disabled');
         } else {
@@ -666,40 +896,111 @@ function showDetail(rowId) {
         }
     }
     
-    statusSelect.onchange = checkChanges;
+    statusSelect.onchange = () => {
+        toggleDropdowns();
+        checkChanges();
+    };
+    
     flagSelect.onchange = checkChanges;
-    checkChanges();
+    petugasSelect.onchange = checkChanges;
+    
+    toggleDropdowns();
+    
+    setTimeout(() => {
+        checkChanges();
+    }, 0);
     
     saveBtn.onclick = async () => {
         if (saveBtn.disabled) return;
         
         const newStatus = statusSelect.value;
         const newFlag = flagSelect.value;
+        const newPetugas = petugasSelect.value;
         
         try {
             saveBtn.disabled = true;
             saveBtn.textContent = 'Menyimpan...';
             
+            const rowNumberToUpdate = row.originalRowNumber || row.rowNumber;
+            console.log('=== UPDATE INFO ===');
+            console.log('Row data:', {
+                id: row.id,
+                rowNumber: row.rowNumber,
+                originalRowNumber: row.originalRowNumber,
+                NPK: row.B,
+                currentStatus: currentStatus,
+                newStatus: newStatus
+            });
+            console.log('Using rowNumber for update:', rowNumberToUpdate);
+            console.log('===================');
+            
             const promises = [];
             
             if (newStatus !== currentStatus) {
-                promises.push(updateStatus(row.rowNumber, newStatus));
+                console.log('Updating status from', currentStatus, 'to', newStatus, 'on row', rowNumberToUpdate);
+                promises.push(updateStatus(rowNumberToUpdate, newStatus));
+            } else {
+                console.log('Status unchanged, skipping update');
             }
             
-            if (newFlag !== currentFlag) {
-                promises.push(updateFlag(row.rowNumber, newFlag));
+            const isClosedOrCancelled = newStatus === 'Closed' || newStatus === 'Cancelled';
+            
+            if (isClosedOrCancelled) {
+                if (newFlag !== currentFlag) {
+                    console.log('Updating flag from', currentFlag, 'to', newFlag, 'on row', rowNumberToUpdate);
+                    promises.push(updateFlag(rowNumberToUpdate, newFlag));
+                }
+                
+                if (newPetugas !== currentPetugas) {
+                    console.log('Updating petugas from', currentPetugas, 'to', newPetugas, 'on row', rowNumberToUpdate);
+                    promises.push(updatePetugas(rowNumberToUpdate, newPetugas));
+                }
+                
+                if (isClosedOrCancelled && !currentWaktuSelesai) {
+                    const now = new Date();
+                    const waktuSelesai = now.toISOString();
+                    console.log('Updating waktu selesai on row', rowNumberToUpdate);
+                    promises.push(updateWaktuSelesai(rowNumberToUpdate, waktuSelesai));
+                }
             }
             
             await Promise.all(promises);
             
-            showNotification('Data berhasil diupdate!', 'success');
+            console.log('All updates completed, waiting before reload...');
             
-            setTimeout(() => {
-                loadData();
-                setTimeout(() => {
-                    closePopup();
-                }, 500);
-            }, 1500);
+            saveBtn.textContent = 'Memuat ulang...';
+            saveBtn.disabled = true;
+            saveBtn.classList.add('disabled');
+            
+            showNotification('Data berhasil diupdate! Memuat ulang data...', 'success');
+            
+            setTimeout(async () => {
+                console.log('Clearing all local data...');
+                allData = [];
+                filteredData = [];
+                currentDetailRow = null;
+                
+                console.log('Force reloading data from server (no cache)...');
+                try {
+                    await loadData();
+                    console.log('Data reloaded successfully from server');
+                    
+                    showNotification('Data berhasil diupdate!', 'success');
+                    
+                    setTimeout(() => {
+                        closePopup();
+                    }, 1000);
+                } catch (error) {
+                    console.error('Error reloading data:', error);
+                    showNotification('Data diupdate tapi gagal reload. Silakan refresh halaman.', 'error');
+                    saveBtn.textContent = 'Simpan';
+                    saveBtn.disabled = false;
+                    saveBtn.classList.remove('disabled');
+                    setTimeout(() => {
+                        closePopup();
+                    }, 2000);
+                }
+            }, 2000);
         } catch (error) {
             console.error('Error saving:', error);
             saveBtn.disabled = false;
@@ -716,12 +1017,17 @@ function showDetail(rowId) {
 let currentDetailRow = null;
 
 async function updateStatus(rowNumber, status) {
-    console.log('Updating status:', { rowNumber, status });
+    console.log('Updating status:', { rowNumber, status, currentDetailRow: currentDetailRow });
+    
+    if (!rowNumber || isNaN(rowNumber)) {
+        throw new Error('RowNumber tidak valid: ' + rowNumber);
+    }
     
     const url = new URL(APPS_SCRIPT_URL);
     url.searchParams.append('action', 'updateStatus');
     url.searchParams.append('rowNumber', rowNumber);
     url.searchParams.append('status', status);
+    url.searchParams.append('_t', Date.now());
     
     let result;
     try {
@@ -751,15 +1057,9 @@ async function updateStatus(rowNumber, status) {
         throw new Error(result.error || 'Gagal mengupdate status');
     }
 
-    if (currentDetailRow) {
-        currentDetailRow.status = status;
-        const rowIndex = allData.findIndex(r => r.id === currentDetailRow.id);
-        if (rowIndex !== -1) {
-            allData[rowIndex].status = status;
-        }
-    }
-
-    filterAndDisplayData();
+    console.log('Status berhasil diupdate di spreadsheet, rowNumber:', rowNumber, 'status:', status);
+    
+    return result;
 }
 
 async function updateFlag(rowNumber, flag) {
@@ -798,15 +1098,85 @@ async function updateFlag(rowNumber, flag) {
         throw new Error(result.error || 'Gagal mengupdate flag');
     }
 
-    if (currentDetailRow) {
-        currentDetailRow.flag = flag;
-        const rowIndex = allData.findIndex(r => r.id === currentDetailRow.id);
-        if (rowIndex !== -1) {
-            allData[rowIndex].flag = flag;
+    return result;
+}
+
+async function updatePetugas(rowNumber, petugas) {
+    console.log('Updating petugas:', { rowNumber, petugas });
+    
+    const url = new URL(APPS_SCRIPT_URL);
+    url.searchParams.append('action', 'updatePetugas');
+    url.searchParams.append('rowNumber', rowNumber);
+    url.searchParams.append('petugas', petugas);
+    
+    let result;
+    try {
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-cache'
+        });
+
+        console.log('Response status:', response.status);
+        console.log('Response ok:', response.ok);
+
+        if (!response.ok) {
+            throw new Error('HTTP Error: ' + response.status);
         }
+
+        const text = await response.text();
+        console.log('Response text:', text);
+        result = JSON.parse(text);
+        console.log('Parsed result:', result);
+    } catch (e) {
+        console.error('Fetch error:', e);
+        throw new Error('Gagal mengupdate petugas: ' + e.message);
     }
 
-    filterAndDisplayData();
+    if (!result.success) {
+        throw new Error(result.error || 'Gagal mengupdate petugas');
+    }
+
+    return result;
+}
+
+async function updateWaktuSelesai(rowNumber, waktuSelesai) {
+    console.log('Updating waktu selesai:', { rowNumber, waktuSelesai });
+    
+    const url = new URL(APPS_SCRIPT_URL);
+    url.searchParams.append('action', 'updateWaktuSelesai');
+    url.searchParams.append('rowNumber', rowNumber);
+    url.searchParams.append('waktuSelesai', waktuSelesai);
+    
+    let result;
+    try {
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-cache'
+        });
+
+        console.log('Response status:', response.status);
+        console.log('Response ok:', response.ok);
+
+        if (!response.ok) {
+            throw new Error('HTTP Error: ' + response.status);
+        }
+
+        const text = await response.text();
+        console.log('Response text:', text);
+        result = JSON.parse(text);
+        console.log('Parsed result:', result);
+    } catch (e) {
+        console.error('Fetch error:', e);
+        throw new Error('Gagal mengupdate waktu selesai: ' + e.message);
+    }
+
+    if (!result.success) {
+        throw new Error(result.error || 'Gagal mengupdate waktu selesai');
+    }
+
+    return result;
 }
 
 function showNotification(message, type = 'success') {

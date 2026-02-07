@@ -94,7 +94,7 @@
                         <option value="Cancelled">Cancelled</option>
                     </select>
                 </div>
-                <div id="flagSection" class="status-section">
+                <div id="flagSection" class="status-section" style="display: none;">
                     <label for="flagSelect">Flag:</label>
                     <select id="flagSelect" class="status-select">
                         <option value="Hijau">Hijau</option>
@@ -102,8 +102,16 @@
                         <option value="Merah">Merah</option>
                     </select>
                 </div>
+                <div id="petugasSection" class="status-section" style="display: none;">
+                    <label for="petugasSelect">Petugas:</label>
+                    <select id="petugasSelect" class="status-select">
+                        <option value="Jalal">Jalal</option>
+                        <option value="Bayu">Bayu</option>
+                        <option value="Ilma">Ilma</option>
+                    </select>
+                </div>
                 <div class="save-button-container">
-                    <button id="saveBtn" class="save-status-btn">Simpan</button>
+                    <button id="saveBtn" class="save-status-btn" style="display: none;">Simpan</button>
                 </div>
             </div>
             <div id="popupNotification" class="popup-notification"></div>
