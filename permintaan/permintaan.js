@@ -11,9 +11,24 @@ let currentFilters = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    if (!checkAuth()) {
+        return;
+    }
     loadData();
     setupEventListeners();
+    setupLogout();
 });
+
+function setupLogout() {
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function() {
+            if (confirm('Apakah Anda yakin ingin logout?')) {
+                logout();
+            }
+        });
+    }
+}
 
 function setupEventListeners() {
     const searchInput = document.getElementById('searchInput');

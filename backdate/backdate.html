@@ -13,6 +13,7 @@
                 <a href="../" class="back-link">← Kembali</a>
                 <span class="header-icon">📅</span>
                 <h1>Backdate</h1>
+                <button id="logoutBtn" class="logout-btn" title="Logout">🚪</button>
             </div>
         </header>
 
@@ -24,5 +25,22 @@
             </div>
         </div>
     </div>
+    <script src="../auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!checkAuth()) {
+                return;
+            }
+            
+            const logoutBtn = document.getElementById('logoutBtn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', function() {
+                    if (confirm('Apakah Anda yakin ingin logout?')) {
+                        logout();
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>

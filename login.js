@@ -1,0 +1,42 @@
+function getIndexPath() {
+    const currentPath = window.location.pathname;
+    if (currentPath.includes('/permintaan/') || currentPath.includes('/backdate/')) {
+        return '../index.html';
+    }
+    return 'index.html';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (isAuthenticated()) {
+        window.location.href = getIndexPath();
+        return;
+    }
+
+    const loginForm = document.getElementById('loginForm');
+    const passwordInput = document.getElementById('password');
+    const errorMessage = document.getElementById('errorMessage');
+
+    loginForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const password = passwordInput.value.trim();
+        errorMessage.classList.remove('show');
+        errorMessage.textContent = '';
+
+        if (password === PASSWORD) {
+            setSession();
+            window.location.href = getIndexPath();
+        } else {
+            errorMessage.textContent = 'Password salah. Silakan coba lagi.';
+            errorMessage.classList.add('show');
+            passwordInput.value = '';
+            passwordInput.focus();
+        }
+    });
+
+    passwordInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            loginForm.dispatchEvent(new Event('submit'));
+        }
+    });
+});

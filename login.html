@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Data Permintaan DOF</title>
+    <link rel="stylesheet" href="login.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-box">
+            <div class="login-header">
+                <span class="login-icon">🔒</span>
+                <h1>Data Permintaan DOF</h1>
+                <p>Masukkan password untuk melanjutkan</p>
+            </div>
+            
+            <form id="loginForm">
+                <div class="input-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Masukkan password" required autofocus>
+                    <div id="errorMessage" class="error-message"></div>
+                </div>
+                
+                <button type="submit" class="login-btn">
+                    <span>Masuk</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="auth.js"></script>
+    <script src="login.js"></script>
+</body>
+</html>
