@@ -352,12 +352,15 @@ function displayTable() {
     const tbody = document.getElementById('tableBody');
     if (!tbody) return;
     
-    const displayColumns = [0, 1, 2, 3, 5, 6];
+    const displayColumns = [0, 6, 1, 2, 3, 5];
     const statusColIndex = getStatusColumnIndex();
     
     tbody.innerHTML = filteredData.map((row) => {
         const cells = displayColumns.map(index => {
-            const headerName = spreadsheetHeaders[index] || `Kolom ${String.fromCharCode(65 + index)}`;
+            let headerName = spreadsheetHeaders[index] || `Kolom ${String.fromCharCode(65 + index)}`;
+            if (headerName === 'Pilih Permintaan') {
+                headerName = 'Jenis Permintaan';
+            }
             const colLetter = String.fromCharCode(65 + index);
             let value = row[colLetter] || '';
             value = formatValueForDisplay(value, headerName);
@@ -396,12 +399,15 @@ function displayTable() {
 
 function displayCards() {
     const cardsContainer = document.getElementById('cardsContainer');
-    const displayColumns = [0, 1, 2, 3, 5, 6];
+    const displayColumns = [0, 6, 1, 2, 3, 5];
     
     cardsContainer.innerHTML = filteredData.map(row => {
         const headers = spreadsheetHeaders;
         const cardRows = displayColumns.map(index => {
-            const headerName = headers[index] || `Kolom ${String.fromCharCode(65 + index)}`;
+            let headerName = headers[index] || `Kolom ${String.fromCharCode(65 + index)}`;
+            if (headerName === 'Pilih Permintaan') {
+                headerName = 'Jenis Permintaan';
+            }
             const colLetter = String.fromCharCode(65 + index);
             let value = row[colLetter] || '';
             value = formatValueForDisplay(value, headerName);
@@ -534,10 +540,13 @@ function updateTableHeaders() {
     const thead = document.querySelector('#dataTable thead tr');
     if (!thead || spreadsheetHeaders.length === 0) return;
     
-    const displayColumns = [0, 1, 2, 3, 5, 6];
+    const displayColumns = [0, 6, 1, 2, 3, 5];
     
     thead.innerHTML = displayColumns.map(index => {
-        const headerName = spreadsheetHeaders[index] || `Kolom ${String.fromCharCode(65 + index)}`;
+        let headerName = spreadsheetHeaders[index] || `Kolom ${String.fromCharCode(65 + index)}`;
+        if (headerName === 'Pilih Permintaan') {
+            headerName = 'Jenis Permintaan';
+        }
         return `<th>${escapeHtml(headerName)}</th>`;
     }).join('') + '<th>Status</th><th>Flag</th>';
 }
@@ -582,7 +591,10 @@ function showDetail(rowId) {
     
     detailContent.innerHTML = columns.map((col) => {
         const colIndex = col.charCodeAt(0) - 65;
-        const headerName = spreadsheetHeaders[colIndex] || `Kolom ${col}`;
+        let headerName = spreadsheetHeaders[colIndex] || `Kolom ${col}`;
+        if (headerName === 'Pilih Permintaan') {
+            headerName = 'Jenis Permintaan';
+        }
         
         if (colIndex === statusColIndex) {
             return '';
