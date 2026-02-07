@@ -115,6 +115,7 @@ async function loadData() {
 
             return {
                 id: index,
+                rowNumber: index + 2,
                 A: getColumnValue(0),
                 B: getColumnValue(1),
                 C: getColumnValue(2),
@@ -128,7 +129,8 @@ async function loadData() {
                 K: getColumnValue(10),
                 L: getColumnValue(11),
                 pilihPermintaan: findColumnValue(row, 'Pilih Permintaan'),
-                timestamp: findColumnValue(row, 'Timestamp')
+                timestamp: findColumnValue(row, 'Timestamp'),
+                status: findColumnValue(row, 'Status') || ''
             };
         });
 
@@ -139,7 +141,7 @@ async function loadData() {
     } catch (error) {
         console.error('Error loading data:', error);
         document.getElementById('tableBody').innerHTML = 
-            '<tr><td colspan="6" class="loading">' +
+            '<tr><td colspan="7" class="loading">' +
             '<strong style="color: #dc3545;">Error: ' + escapeHtml(error.message) + '</strong>' +
             '</td></tr>';
         document.getElementById('cardsContainer').innerHTML = 
@@ -274,7 +276,7 @@ function displayData() {
     const isMobile = window.innerWidth <= 768;
     
     if (filteredData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="loading">Tidak ada data yang ditemukan</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="loading">Tidak ada data yang ditemukan</td></tr>';
         cardsContainer.innerHTML = '<div class="loading">Tidak ada data yang ditemukan</div>';
         return;
     }
@@ -286,9 +288,30 @@ function displayData() {
     }
 }
 
+function getStatusColumnIndex() {
+    for (let i = 0; i < spreadsheetHeaders.length; i++) {
+        if (spreadsheetHeaders[i] && spreadsheetHeaders[i].toLowerCase().includes('status')) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+function formatStatus(status) {
+    if (!status) return '<span class="status-badge status-empty">-</span>';
+    const statusLower = status.toLowerCase();
+    if (statusLower === 'open') {
+        return '<span class="status-badge status-open">Open</span>';
+    } else if (statusLower === 'closed') {
+        return '<span class="status-badge status-closed">Closed</span>';
+    }
+    return `<span class="status-badge">${escapeHtml(status)}</span>`;
+}
+
 function displayTable() {
     const tbody = document.getElementById('tableBody');
     const displayColumns = [0, 1, 2, 3, 5, 6];
+    const statusColIndex = getStatusColumnIndex();
     
     tbody.innerHTML = filteredData.map((row) => {
         const cells = displayColumns.map(index => {
@@ -299,9 +322,12 @@ function displayTable() {
             return highlightText(value);
         });
 
+        const statusCell = formatStatus(row.status);
+
         return `
             <tr onclick="showDetail(${row.id})">
                 ${cells.map(cell => `<td>${cell}</td>`).join('')}
+                <td onclick="event.stopPropagation()">${statusCell}</td>
             </tr>
         `;
     }).join('');
@@ -326,9 +352,17 @@ function displayCards() {
             `;
         }).join('');
 
+        const statusRow = `
+            <div class="card-row">
+                <div class="card-label">Status</div>
+                <div class="card-value">${formatStatus(row.status)}</div>
+            </div>
+        `;
+
         return `
             <div class="card" onclick="showDetail(${row.id})">
                 ${cardRows}
+                ${statusRow}
             </div>
         `;
     }).join('');
@@ -423,7 +457,7 @@ function updateTableHeaders() {
     thead.innerHTML = displayColumns.map(index => {
         const headerName = spreadsheetHeaders[index] || `Kolom ${String.fromCharCode(65 + index)}`;
         return `<th>${escapeHtml(headerName)}</th>`;
-    }).join('');
+    }).join('') + '<th>Status</th>';
 }
 
 function showDetail(rowId) {
@@ -457,10 +491,16 @@ function showDetail(rowId) {
 
     const detailContent = document.getElementById('detailContent');
     const columns = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+    const statusColIndex = getStatusColumnIndex();
     
     detailContent.innerHTML = columns.map((col) => {
         const colIndex = col.charCodeAt(0) - 65;
         const headerName = spreadsheetHeaders[colIndex] || `Kolom ${col}`;
+        
+        if (colIndex === statusColIndex) {
+            return '';
+        }
+        
         let value = row[col];
         
         if (!value || value === '') return '';
@@ -485,9 +525,138 @@ function showDetail(rowId) {
         `;
     }).filter(item => item !== '').join('');
 
+    const statusSelect = document.getElementById('statusSelect');
+    const saveStatusBtn = document.getElementById('saveStatusBtn');
+    
+    const currentStatus = (row.status || '').trim();
+    if (currentStatus) {
+        statusSelect.value = currentStatus;
+    } else {
+        statusSelect.value = 'Open';
+    }
+    currentDetailRow = row;
+    
+    function checkStatusChange() {
+        const selectedStatus = statusSelect.value;
+        const originalStatus = (currentStatus || '').trim();
+        
+        if (selectedStatus === originalStatus && originalStatus !== '') {
+            saveStatusBtn.disabled = true;
+            saveStatusBtn.classList.add('disabled');
+        } else {
+            saveStatusBtn.disabled = false;
+            saveStatusBtn.classList.remove('disabled');
+        }
+    }
+    
+    statusSelect.addEventListener('change', checkStatusChange);
+    checkStatusChange();
+    
+    saveStatusBtn.onclick = () => {
+        const newStatus = statusSelect.value;
+        if (newStatus && !saveStatusBtn.disabled) {
+            updateStatus(row.rowNumber, newStatus);
+        }
+    };
+
     const popup = document.getElementById('detailPopup');
     popup.classList.add('show');
     document.body.style.overflow = 'hidden';
+}
+
+let currentDetailRow = null;
+
+async function updateStatus(rowNumber, status) {
+    try {
+        const saveBtn = document.getElementById('saveStatusBtn');
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Menyimpan...';
+        
+        console.log('Updating status:', { rowNumber, status });
+        
+        const url = new URL(APPS_SCRIPT_URL);
+        url.searchParams.append('action', 'updateStatus');
+        url.searchParams.append('rowNumber', rowNumber);
+        url.searchParams.append('status', status);
+        
+        let result;
+        try {
+            const response = await fetch(url.toString(), {
+                method: 'GET',
+                mode: 'cors',
+                cache: 'no-cache'
+            });
+
+            console.log('Response status:', response.status);
+            console.log('Response ok:', response.ok);
+
+            if (!response.ok) {
+                throw new Error('HTTP Error: ' + response.status);
+            }
+
+            const text = await response.text();
+            console.log('Response text:', text);
+            result = JSON.parse(text);
+            console.log('Parsed result:', result);
+        } catch (e) {
+            console.error('Fetch error:', e);
+            throw new Error('Gagal mengupdate status: ' + e.message);
+        }
+
+        if (!result.success) {
+            throw new Error(result.error || 'Gagal mengupdate status');
+        }
+
+        if (currentDetailRow) {
+            currentDetailRow.status = status;
+            const rowIndex = allData.findIndex(r => r.id === currentDetailRow.id);
+            if (rowIndex !== -1) {
+                allData[rowIndex].status = status;
+            }
+        }
+
+        filterAndDisplayData();
+        
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Simpan Status';
+        
+        showNotification('Status berhasil diupdate!', 'success');
+        
+        setTimeout(() => {
+            loadData();
+            setTimeout(() => {
+                closePopup();
+            }, 500);
+        }, 1500);
+    } catch (error) {
+        console.error('Error updating status:', error);
+        const saveBtn = document.getElementById('saveStatusBtn');
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Simpan Status';
+        showNotification('Error: ' + error.message, 'error');
+    }
+}
+
+function showNotification(message, type = 'success') {
+    const notification = document.getElementById('popupNotification');
+    if (!notification) return;
+    
+    notification.textContent = message;
+    notification.className = 'popup-notification ' + type;
+    notification.style.display = 'block';
+    
+    setTimeout(() => {
+        notification.style.opacity = '1';
+        notification.style.transform = 'translate(-50%, -50%)';
+    }, 10);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translate(-50%, -50%) translateY(-10px)';
+        setTimeout(() => {
+            notification.style.display = 'none';
+        }, 300);
+    }, 3000);
 }
 
 function closePopup() {

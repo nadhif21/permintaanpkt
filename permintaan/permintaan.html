@@ -65,11 +65,12 @@
                         <th>Kolom D</th>
                         <th>Kolom F</th>
                         <th>Kolom G</th>
+                        <th>Status</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody">
                     <tr>
-                        <td colspan="6" class="loading">Memuat data...</td>
+                        <td colspan="7" class="loading">Memuat data...</td>
                     </tr>
                 </tbody>
             </table>
@@ -82,6 +83,15 @@
             <span class="close-btn">&times;</span>
             <h2>Detail Data</h2>
             <div id="detailContent" class="detail-content"></div>
+            <div id="statusSection" class="status-section">
+                <label for="statusSelect">Status:</label>
+                <select id="statusSelect" class="status-select">
+                    <option value="Open" selected>Open</option>
+                    <option value="Closed">Closed</option>
+                </select>
+                <button id="saveStatusBtn" class="save-status-btn">Simpan Status</button>
+            </div>
+            <div id="popupNotification" class="popup-notification"></div>
         </div>
     </div>
 
