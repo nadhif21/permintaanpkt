@@ -1,0 +1,431 @@
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzLv5k5tA8DAf_OjTRewxzDB79AD-Q0qHH1qaHjh6ORpmrILaJrYZt5EKMYa5K9KHd89Q/exec';
+
+let allData = [];
+let filteredData = [];
+let searchTerm = '';
+let spreadsheetHeaders = [];
+let currentFilters = {
+    jenis: '',
+    bulan: '',
+    tahun: ''
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadData();
+    setupEventListeners();
+});
+
+function setupEventListeners() {
+    const searchInput = document.getElementById('searchInput');
+    searchInput.addEventListener('input', (e) => {
+        searchTerm = e.target.value.toLowerCase();
+        filterAndDisplayData();
+    });
+
+    document.getElementById('jenisFilter').addEventListener('change', (e) => {
+        currentFilters.jenis = e.target.value;
+        filterAndDisplayData();
+    });
+
+    document.getElementById('bulanFilter').addEventListener('change', (e) => {
+        currentFilters.bulan = e.target.value;
+        filterAndDisplayData();
+    });
+
+    document.getElementById('tahunFilter').addEventListener('change', (e) => {
+        currentFilters.tahun = e.target.value;
+        filterAndDisplayData();
+    });
+
+    document.getElementById('refreshBtn').addEventListener('click', () => {
+        loadData();
+    });
+
+    document.querySelector('.close-btn').addEventListener('click', closePopup);
+    document.getElementById('detailPopup').addEventListener('click', (e) => {
+        if (e.target.id === 'detailPopup') {
+            closePopup();
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closePopup();
+        }
+    });
+}
+
+function sortDataByTimestamp(data) {
+    return data.sort((a, b) => {
+        const dateA = parseTimestamp(a.timestamp);
+        const dateB = parseTimestamp(b.timestamp);
+        return dateB - dateA;
+    });
+}
+
+function parseTimestamp(timestamp) {
+    if (!timestamp) return 0;
+    const date = new Date(timestamp);
+    return isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
+async function loadData() {
+    try {
+        if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_URL') {
+            throw new Error('URL Apps Script belum dikonfigurasi. Silakan isi APPS_SCRIPT_URL di script.js');
+        }
+
+        const response = await fetch(APPS_SCRIPT_URL, {
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-cache'
+        });
+
+        if (!response) {
+            throw new Error('Tidak dapat terhubung ke Apps Script. Pastikan URL benar dan Apps Script sudah di-deploy.');
+        }
+
+        if (!response.ok) {
+            const errorText = await response.text().catch(() => 'Unknown error');
+            throw new Error(`HTTP Error ${response.status}: ${errorText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (!result) {
+            throw new Error('Response kosong dari Apps Script');
+        }
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Error dari Apps Script');
+        }
+
+        const headers = result.headers || (result.data.length > 0 ? Object.keys(result.data[0]) : []);
+        spreadsheetHeaders = headers;
+        updateTableHeaders();
+        
+        allData = result.data.map((row, index) => {
+            const getColumnValue = (position) => {
+                if (position < headers.length) {
+                    const headerName = headers[position];
+                    return row[headerName] || '';
+                }
+                return '';
+            };
+
+            return {
+                id: index,
+                A: getColumnValue(0),
+                B: getColumnValue(1),
+                C: getColumnValue(2),
+                D: getColumnValue(3),
+                E: getColumnValue(4),
+                F: getColumnValue(5),
+                G: getColumnValue(6),
+                H: getColumnValue(7),
+                I: getColumnValue(8),
+                J: getColumnValue(9),
+                K: getColumnValue(10),
+                L: getColumnValue(11),
+                pilihPermintaan: findColumnValue(row, 'Pilih Permintaan'),
+                timestamp: findColumnValue(row, 'Timestamp')
+            };
+        });
+
+        allData = sortDataByTimestamp(allData);
+
+        setupFilterOptions();
+        filterAndDisplayData();
+    } catch (error) {
+        console.error('Error loading data:', error);
+        document.getElementById('tableBody').innerHTML = 
+            '<tr><td colspan="6" class="loading">' +
+            '<strong style="color: #dc3545;">Error: ' + escapeHtml(error.message) + '</strong>' +
+            '</td></tr>';
+        document.getElementById('cardsContainer').innerHTML = 
+            '<div class="loading"><strong style="color: #dc3545;">Error: ' + escapeHtml(error.message) + '</strong></div>';
+    }
+}
+
+function findColumnValue(row, columnName) {
+    const keys = Object.keys(row);
+    const searchName = columnName.toLowerCase().trim();
+    
+    let key = keys.find(k => k.toLowerCase().trim() === searchName);
+    if (key) return row[key];
+    
+    key = keys.find(k => k.toLowerCase().includes(searchName) || searchName.includes(k.toLowerCase()));
+    if (key) return row[key];
+    
+    return '';
+}
+
+function setupFilterOptions() {
+    const jenisSet = new Set();
+    allData.forEach(row => {
+        if (row.pilihPermintaan) {
+            jenisSet.add(row.pilihPermintaan);
+        }
+    });
+    
+    const jenisFilter = document.getElementById('jenisFilter');
+    Array.from(jenisSet).sort().forEach(jenis => {
+        const option = document.createElement('option');
+        option.value = jenis;
+        option.textContent = jenis;
+        jenisFilter.appendChild(option);
+    });
+
+    const tahunSet = new Set();
+    allData.forEach(row => {
+        if (row.timestamp) {
+            const tahun = extractYear(row.timestamp);
+            if (tahun) {
+                tahunSet.add(tahun);
+            }
+        }
+    });
+    
+    const tahunFilter = document.getElementById('tahunFilter');
+    Array.from(tahunSet).sort((a, b) => b - a).forEach(tahun => {
+        const option = document.createElement('option');
+        option.value = tahun;
+        option.textContent = tahun;
+        tahunFilter.appendChild(option);
+    });
+}
+
+function extractYear(timestamp) {
+    if (!timestamp) return null;
+    
+    const dateStr = timestamp.toString().trim();
+    const dateMatch = dateStr.match(/\d{4}/);
+    if (dateMatch) {
+        return dateMatch[0];
+    }
+    
+    const date = new Date(dateStr);
+    if (!isNaN(date.getTime())) {
+        return date.getFullYear().toString();
+    }
+    
+    return null;
+}
+
+function extractMonth(timestamp) {
+    if (!timestamp) return null;
+    
+    const dateStr = timestamp.toString().trim();
+    const date = new Date(dateStr);
+    
+    if (!isNaN(date.getTime())) {
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        return month;
+    }
+    
+    const match = dateStr.match(/(\d{1,2})\/\d{1,2}\/\d{4}/);
+    if (match) {
+        return match[1].padStart(2, '0');
+    }
+    
+    return null;
+}
+
+function filterAndDisplayData() {
+    filteredData = allData.filter(row => {
+        if (currentFilters.jenis && row.pilihPermintaan !== currentFilters.jenis) {
+            return false;
+        }
+
+        if (currentFilters.bulan) {
+            const month = extractMonth(row.timestamp);
+            if (month !== currentFilters.bulan) {
+                return false;
+            }
+        }
+
+        if (currentFilters.tahun) {
+            const year = extractYear(row.timestamp);
+            if (year !== currentFilters.tahun) {
+                return false;
+            }
+        }
+
+        if (searchTerm) {
+            const searchable = [
+                row.A, row.B, row.C, row.D, row.F, row.G
+            ].join(' ').toLowerCase();
+            
+            if (!searchable.includes(searchTerm)) {
+                return false;
+            }
+        }
+
+        return true;
+    });
+
+    displayData();
+    updateResultCount();
+}
+
+function displayData() {
+    const tbody = document.getElementById('tableBody');
+    const cardsContainer = document.getElementById('cardsContainer');
+    const isMobile = window.innerWidth <= 768;
+    
+    if (filteredData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="loading">Tidak ada data yang ditemukan</td></tr>';
+        cardsContainer.innerHTML = '<div class="loading">Tidak ada data yang ditemukan</div>';
+        return;
+    }
+
+    if (isMobile) {
+        displayCards();
+    } else {
+        displayTable();
+    }
+}
+
+function displayTable() {
+    const tbody = document.getElementById('tableBody');
+    const cells = filteredData.map(row => [
+        highlightText(row.A || ''),
+        highlightText(row.B || ''),
+        highlightText(row.C || ''),
+        highlightText(row.D || ''),
+        highlightText(row.F || ''),
+        highlightText(row.G || '')
+    ]);
+
+    tbody.innerHTML = filteredData.map((row, index) => {
+        return `
+            <tr onclick="showDetail(${row.id})">
+                ${cells[index].map(cell => `<td>${cell}</td>`).join('')}
+            </tr>
+        `;
+    }).join('');
+}
+
+function displayCards() {
+    const cardsContainer = document.getElementById('cardsContainer');
+    const displayColumns = [0, 1, 2, 3, 5, 6];
+    
+    cardsContainer.innerHTML = filteredData.map(row => {
+        const headers = spreadsheetHeaders;
+        const cardRows = displayColumns.map(index => {
+            const headerName = headers[index] || `Kolom ${String.fromCharCode(65 + index)}`;
+            const value = row[String.fromCharCode(65 + index)] || '';
+            return `
+                <div class="card-row">
+                    <div class="card-label">${escapeHtml(headerName)}</div>
+                    <div class="card-value">${highlightText(value)}</div>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="card" onclick="showDetail(${row.id})">
+                ${cardRows}
+            </div>
+        `;
+    }).join('');
+}
+
+window.addEventListener('resize', () => {
+    if (filteredData.length > 0) {
+        displayData();
+    }
+});
+
+function highlightText(text) {
+    if (!searchTerm || !text) {
+        return escapeHtml(text);
+    }
+
+    const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
+    return escapeHtml(text).replace(regex, '<span class="highlight">$1</span>');
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function updateResultCount() {
+    document.getElementById('resultCount').textContent = filteredData.length;
+}
+
+function updateTableHeaders() {
+    const thead = document.querySelector('#dataTable thead tr');
+    if (!thead || spreadsheetHeaders.length === 0) return;
+    
+    const displayColumns = [0, 1, 2, 3, 5, 6];
+    
+    thead.innerHTML = displayColumns.map(index => {
+        const headerName = spreadsheetHeaders[index] || `Kolom ${String.fromCharCode(65 + index)}`;
+        return `<th>${escapeHtml(headerName)}</th>`;
+    }).join('');
+}
+
+function showDetail(rowId) {
+    const row = allData.find(r => r.id === rowId);
+    if (!row) return;
+
+    let dataName = '';
+    const nameHeaders = ['Nama Lengkap', 'Nama', 'Name', 'NAMA LENGKAP', 'NAMA'];
+    
+    for (let i = 0; i < spreadsheetHeaders.length; i++) {
+        const header = spreadsheetHeaders[i];
+        if (nameHeaders.some(nh => header && header.toLowerCase().includes(nh.toLowerCase()))) {
+            const colLetter = String.fromCharCode(65 + i);
+            dataName = row[colLetter] || '';
+            if (dataName) break;
+        }
+    }
+    
+    if (!dataName && row.B) {
+        dataName = row.B;
+    }
+    
+    if (!dataName && row.C) {
+        dataName = row.C;
+    }
+
+    const detailTitle = document.querySelector('#detailPopup h2');
+    if (detailTitle) {
+        detailTitle.textContent = dataName ? `Detail Data - ${dataName}` : 'Detail Data';
+    }
+
+    const detailContent = document.getElementById('detailContent');
+    const columns = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+    
+    detailContent.innerHTML = columns.map((col) => {
+        const colIndex = col.charCodeAt(0) - 65;
+        const headerName = spreadsheetHeaders[colIndex] || `Kolom ${col}`;
+        const value = row[col];
+        
+        if (!value || value === '') return '';
+        
+        return `
+            <div class="detail-item">
+                <label>${escapeHtml(headerName)}</label>
+                <div class="value">${escapeHtml(value)}</div>
+            </div>
+        `;
+    }).filter(item => item !== '').join('');
+
+    const popup = document.getElementById('detailPopup');
+    popup.classList.add('show');
+    document.body.style.overflow = 'hidden';
+}
+
+function closePopup() {
+    const popup = document.getElementById('detailPopup');
+    popup.classList.remove('show');
+    document.body.style.overflow = 'auto';
+}

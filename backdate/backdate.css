@@ -1,0 +1,116 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+    color: #333;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+    min-height: 60vh;
+}
+
+header {
+    background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+    color: white;
+    padding: 24px 30px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.back-link {
+    color: white;
+    text-decoration: none;
+    font-size: 1rem;
+    margin-right: auto;
+    padding: 8px 16px;
+    border-radius: 6px;
+    transition: background 0.3s;
+}
+
+.back-link:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.header-icon {
+    font-size: 2.2rem;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+header h1 {
+    font-size: 1.9rem;
+    font-weight: 600;
+    margin: 0;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.coming-soon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 40px;
+    min-height: 400px;
+}
+
+.coming-soon-content {
+    text-align: center;
+}
+
+.coming-soon-icon {
+    font-size: 5rem;
+    margin-bottom: 20px;
+}
+
+.coming-soon-content h2 {
+    font-size: 2rem;
+    color: #333;
+    margin-bottom: 12px;
+}
+
+.coming-soon-content p {
+    font-size: 1.1rem;
+    color: #666;
+}
+
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+
+    header {
+        padding: 20px;
+    }
+
+    header h1 {
+        font-size: 1.5rem;
+    }
+
+    .coming-soon {
+        padding: 60px 20px;
+    }
+
+    .coming-soon-icon {
+        font-size: 4rem;
+    }
+
+    .coming-soon-content h2 {
+        font-size: 1.5rem;
+    }
+}
