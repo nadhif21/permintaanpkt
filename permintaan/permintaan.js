@@ -329,6 +329,8 @@ function formatStatus(status) {
         return '<span class="status-badge status-open">Open</span>';
     } else if (statusLower === 'closed') {
         return '<span class="status-badge status-closed">Closed</span>';
+    } else if (statusLower === 'cancelled') {
+        return '<span class="status-badge status-cancelled">Cancelled</span>';
     }
     return `<span class="status-badge">${escapeHtml(status)}</span>`;
 }
