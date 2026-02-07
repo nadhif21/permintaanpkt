@@ -18,7 +18,12 @@
             <form id="loginForm">
                 <div class="input-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" placeholder="Masukkan password" required autofocus>
+                    <div class="password-wrapper">
+                        <input type="password" id="password" placeholder="Masukkan password" required autofocus>
+                        <button type="button" id="togglePassword" class="toggle-password" title="Tampilkan/Sembunyikan password">
+                            <span class="eye-icon">👁️</span>
+                        </button>
+                    </div>
                     <div id="errorMessage" class="error-message"></div>
                 </div>
                 

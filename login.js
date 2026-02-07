@@ -15,6 +15,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const loginForm = document.getElementById('loginForm');
     const passwordInput = document.getElementById('password');
     const errorMessage = document.getElementById('errorMessage');
+    const togglePassword = document.getElementById('togglePassword');
+
+    togglePassword.addEventListener('click', function() {
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        togglePassword.classList.toggle('active');
+        
+        const eyeIcon = togglePassword.querySelector('.eye-icon');
+        if (type === 'text') {
+            eyeIcon.textContent = '🙈';
+            togglePassword.setAttribute('title', 'Sembunyikan password');
+        } else {
+            eyeIcon.textContent = '👁️';
+            togglePassword.setAttribute('title', 'Tampilkan password');
+        }
+    });
 
     loginForm.addEventListener('submit', function(e) {
         e.preventDefault();
