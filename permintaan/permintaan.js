@@ -430,6 +430,9 @@ function displayTable() {
             if (headerName === 'Pilih Permintaan') {
                 headerName = 'Jenis Permintaan';
             }
+            if (headerName && headerName.toLowerCase().includes('timestamp')) {
+                headerName = 'Tanggal Minta';
+            }
             const colLetter = String.fromCharCode(65 + index);
             let value = row[colLetter] || '';
             value = formatValueForDisplay(value, headerName);
@@ -475,6 +478,9 @@ function displayCards() {
             let headerName = headers[index] || `Kolom ${String.fromCharCode(65 + index)}`;
             if (headerName === 'Pilih Permintaan') {
                 headerName = 'Jenis Permintaan';
+            }
+            if (headerName && headerName.toLowerCase().includes('timestamp')) {
+                headerName = 'Tanggal Minta';
             }
             const colLetter = String.fromCharCode(65 + index);
             let value = row[colLetter] || '';
@@ -617,6 +623,9 @@ function updateTableHeaders() {
         if (headerName === 'Pilih Permintaan') {
             headerName = 'Jenis Permintaan';
         }
+        if (headerName && headerName.toLowerCase().includes('timestamp')) {
+            headerName = 'Tanggal Minta';
+        }
         return `<th>${escapeHtml(headerName)}</th>`;
     }).join('') + '<th>Status</th><th>Flag</th>';
 }
@@ -681,6 +690,9 @@ function showDetail(rowId) {
         let headerName = spreadsheetHeaders[colIndex] || `Kolom ${col}`;
         if (headerName === 'Pilih Permintaan') {
             headerName = 'Jenis Permintaan';
+        }
+        if (headerName && headerName.toLowerCase().includes('timestamp')) {
+            headerName = 'Tanggal Minta';
         }
         
         if (colIndex === statusColIndex || colIndex === flagColIndex || 
@@ -786,13 +798,13 @@ function showDetail(rowId) {
     if (currentFlag) {
         flagSelect.value = currentFlag;
     } else {
-        flagSelect.value = 'Hijau';
+        flagSelect.value = '';
     }
     
     if (currentPetugas) {
         petugasSelect.value = currentPetugas;
     } else {
-        petugasSelect.value = 'Jalal';
+        petugasSelect.value = '';
     }
     
     currentDetailRow = row;
@@ -849,6 +861,18 @@ function showDetail(rowId) {
             if (!currentWaktuSelesai) {
                 hasChanges = true;
             }
+            
+            if (!selectedFlag || selectedFlag.trim() === '') {
+                saveBtn.disabled = true;
+                saveBtn.classList.add('disabled');
+                return;
+            }
+            
+            if (!selectedPetugas || selectedPetugas.trim() === '') {
+                saveBtn.disabled = true;
+                saveBtn.classList.add('disabled');
+                return;
+            }
         }
         
         if (hasChanges) {
@@ -861,6 +885,18 @@ function showDetail(rowId) {
     }
     
     statusSelect.onchange = () => {
+        const selectedStatus = statusSelect.value;
+        const isClosedOrCancelled = selectedStatus === 'Closed' || selectedStatus === 'Cancelled';
+        
+        if (isClosedOrCancelled) {
+            if (!currentFlag) {
+                flagSelect.value = '';
+            }
+            if (!currentPetugas) {
+                petugasSelect.value = '';
+            }
+        }
+        
         toggleDropdowns();
         checkChanges();
     };
