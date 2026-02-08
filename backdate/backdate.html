@@ -17,30 +17,88 @@
             </div>
         </header>
 
-        <div class="coming-soon">
-            <div class="coming-soon-content">
-                <div class="coming-soon-icon">🚧</div>
-                <h2>Segera Hadir</h2>
-                <p>Fitur Backdate sedang dalam pengembangan</p>
+        <div class="controls">
+            <div class="search-section">
+                <input type="text" id="searchInput" placeholder="Cari data">
+            </div>
+
+            <div class="filter-section">
+                <div class="stats-text">
+                    Menampilkan <span id="resultCount">0</span> data
+                </div>
+                <div class="filter-controls">
+                    <label for="bulanFilter">Bulan:</label>
+                    <select id="bulanFilter">
+                        <option value="">Semua</option>
+                        <option value="01">Januari</option>
+                        <option value="02">Februari</option>
+                        <option value="03">Maret</option>
+                        <option value="04">April</option>
+                        <option value="05">Mei</option>
+                        <option value="06">Juni</option>
+                        <option value="07">Juli</option>
+                        <option value="08">Agustus</option>
+                        <option value="09">September</option>
+                        <option value="10">Oktober</option>
+                        <option value="11">November</option>
+                        <option value="12">Desember</option>
+                    </select>
+                    <label for="tahunFilter">Tahun:</label>
+                    <select id="tahunFilter">
+                        <option value="">Semua</option>
+                    </select>
+                    <button id="refreshBtn" class="refresh-btn">Refresh Data</button>
+                </div>
             </div>
         </div>
+
+        <div class="table-container">
+            <table id="dataTable">
+                <thead>
+                    <tr>
+                        <th>Kolom A</th>
+                        <th>Kolom B</th>
+                        <th>Kolom E</th>
+                        <th>Kolom G</th>
+                        <th>Kolom H</th>
+                        <th>Kolom I</th>
+                        <th>Status</th>
+                        <th>Flag</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr>
+                        <td colspan="8" class="loading">Memuat data...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="cardsContainer" class="cards-container"></div>
     </div>
+
+    <div id="detailPopup" class="popup">
+        <div class="popup-content">
+            <span class="close-btn">&times;</span>
+            <h2>Detail Data</h2>
+            <div id="detailContent" class="detail-content"></div>
+            <div class="status-flag-container">
+                <div id="statusSection" class="status-section">
+                    <label for="statusSelect">Status:</label>
+                    <select id="statusSelect" class="status-select">
+                        <option value="">Pilih Status</option>
+                        <option value="Closed">Closed</option>
+                        <option value="Cancelled">Cancelled</option>
+                    </select>
+                </div>
+                <div class="save-button-container">
+                    <button id="saveBtn" class="save-status-btn" style="display: none;">Simpan</button>
+                </div>
+            </div>
+            <div id="popupNotification" class="popup-notification"></div>
+        </div>
+    </div>
+
     <script src="../auth.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            if (!checkAuth()) {
-                return;
-            }
-            
-            const logoutBtn = document.getElementById('logoutBtn');
-            if (logoutBtn) {
-                logoutBtn.addEventListener('click', function() {
-                    if (confirm('Apakah Anda yakin ingin logout?')) {
-                        logout();
-                    }
-                });
-            }
-        });
-    </script>
+    <script src="backdate.js"></script>
 </body>
 </html>
