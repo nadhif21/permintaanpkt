@@ -393,7 +393,7 @@ function displayTable() {
             } else if (index === 4) {
                 headerName = 'Tanggal Backdate';
             } else if (index === 1) {
-                headerName = 'Petugas';
+                headerName = 'Admin';
             }
             
             let value = row[colLetter] || '';
@@ -451,7 +451,7 @@ function displayCards() {
             } else if (index === 4) {
                 headerName = 'Tanggal Backdate';
             } else if (index === 1) {
-                headerName = 'Petugas';
+                headerName = 'Admin';
             }
             
             let value = row[colLetter] || '';
@@ -697,7 +697,7 @@ function showDetail(rowId) {
         if (colIndex === 0 && headerName.toLowerCase().includes('timestamp')) {
             headerName = 'Tanggal Input';
         } else if (colIndex === 1 && headerName.toLowerCase().includes('nama admin')) {
-            headerName = 'Petugas';
+            headerName = 'Admin';
         } else if (colIndex === 2 && headerName.toLowerCase().includes('npk')) {
             headerName = 'NPK';
         } else if (colIndex === 3 && headerName.toLowerCase().includes('jabatan')) {
@@ -708,6 +708,8 @@ function showDetail(rowId) {
             headerName = 'Nama yang Dibuka Backdate';
         } else if (colIndex === 7 && headerName.toLowerCase().includes('departemen')) {
             headerName = 'Unit kerja';
+        } else if (colIndex !== 0 && headerName.toLowerCase().includes('timestamp') && !headerName.toLowerCase().includes('tanggal input')) {
+            headerName = 'Tanggal Status';
         }
         
         // Skip Status dan Flag (akan ditampilkan di bawah jika completed)
@@ -764,7 +766,7 @@ function showDetail(rowId) {
         `;
         
         if (currentTimestampSelesai) {
-            const timestampHeader = spreadsheetHeaders[timestampColIndex] || 'Timestamp';
+            const timestampHeader = 'Tanggal Status';
             let timestampValue = formatTimestamp(currentTimestampSelesai);
             if (!timestampValue || timestampValue === currentTimestampSelesai || !timestampValue.includes(':')) {
                 try {
