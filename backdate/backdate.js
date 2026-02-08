@@ -149,6 +149,8 @@ async function loadData() {
                 originalRowNumber: originalRowNumber,
                 A: getColumnValue(0),
                 B: getColumnValue(1),
+                C: getColumnValue(2),
+                D: getColumnValue(3),
                 E: getColumnValue(4),
                 G: getColumnValue(6),
                 H: getColumnValue(7),
@@ -694,14 +696,18 @@ function showDetail(rowId) {
         // Mapping header name untuk tampilan yang lebih user-friendly
         if (colIndex === 0 && headerName.toLowerCase().includes('timestamp')) {
             headerName = 'Tanggal Input';
+        } else if (colIndex === 1 && headerName.toLowerCase().includes('nama admin')) {
+            headerName = 'Petugas';
+        } else if (colIndex === 2 && headerName.toLowerCase().includes('npk')) {
+            headerName = 'NPK';
+        } else if (colIndex === 3 && headerName.toLowerCase().includes('jabatan')) {
+            headerName = 'Jabatan';
+        } else if (colIndex === 4 && headerName.toLowerCase().includes('tanggal pembukaan')) {
+            headerName = 'Tanggal Backdate';
         } else if (colIndex === 6 && headerName.toLowerCase().includes('nama yang dibuka')) {
             headerName = 'Nama yang Dibuka Backdate';
         } else if (colIndex === 7 && headerName.toLowerCase().includes('departemen')) {
             headerName = 'Unit kerja';
-        } else if (colIndex === 4 && headerName.toLowerCase().includes('tanggal pembukaan')) {
-            headerName = 'Tanggal Backdate';
-        } else if (colIndex === 1 && headerName.toLowerCase().includes('nama admin')) {
-            headerName = 'Petugas';
         }
         
         // Skip Status dan Flag (akan ditampilkan di bawah jika completed)
