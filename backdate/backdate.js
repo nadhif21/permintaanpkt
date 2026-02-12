@@ -57,11 +57,70 @@ function setupEventListeners() {
         }
     });
 
+    // Event listener untuk modal Add Perjanjian
+    const addPerjanjianModal = document.getElementById('addPerjanjianModal');
+    if (addPerjanjianModal) {
+        addPerjanjianModal.addEventListener('click', (e) => {
+            if (e.target.id === 'addPerjanjianModal') {
+                closeAddPerjanjianModal();
+            }
+        });
+    }
+
+    // Event listener untuk modal Detail Perjanjian
+    const detailPerjanjianModal = document.getElementById('detailPerjanjianModal');
+    if (detailPerjanjianModal) {
+        detailPerjanjianModal.addEventListener('click', (e) => {
+            if (e.target.id === 'detailPerjanjianModal') {
+                closeDetailPerjanjianModal();
+            }
+        });
+    }
+
+    // Event listener untuk ESC key
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            closePopup();
+            if (addPerjanjianModal && addPerjanjianModal.classList.contains('show')) {
+                closeAddPerjanjianModal();
+            } else if (detailPerjanjianModal && detailPerjanjianModal.classList.contains('show')) {
+                closeDetailPerjanjianModal();
+            } else {
+                closePopup();
+            }
         }
     });
+
+    // Event listener untuk Enter key di form input
+    const unitKerjaInput = document.getElementById('unitKerjaInput');
+    const noSPInput = document.getElementById('noSPInput');
+    const perihalInput = document.getElementById('perihalInput');
+    
+    if (unitKerjaInput) {
+        unitKerjaInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                noSPInput?.focus();
+            }
+        });
+    }
+    
+    if (noSPInput) {
+        noSPInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                perihalInput?.focus();
+            }
+        });
+    }
+    
+    if (perihalInput) {
+        perihalInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                savePerjanjian();
+            }
+        });
+    }
 }
 
 function sortDataByTimestamp(data) {
@@ -742,6 +801,25 @@ function showDetail(rowId) {
             }
         }
         
+        // Cek apakah ini field "Nomor Surat Backdate DOF"
+        const isNomorSuratBackdateDOF = headerLower.includes('nomor surat backdate dof') || 
+                                        headerLower.includes('nomor surat backdate') ||
+                                        headerLower.includes('no surat backdate dof');
+        
+        if (isNomorSuratBackdateDOF && value) {
+            // Tambahkan button Add dan Detail untuk field Nomor Surat Backdate DOF
+            return `
+                <div class="detail-item">
+                    <label>${escapeHtml(headerName)}</label>
+                    <div class="value" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <span style="flex: 1; min-width: 200px;">${value}</span>
+                        <button class="btn-add-perjanjian" onclick="openAddPerjanjianForm('${escapeHtml(value)}')" style="padding: 6px 12px; background: #4caf50; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600;">Add</button>
+                        <button class="btn-detail-perjanjian" onclick="openDetailPerjanjian('${escapeHtml(value)}')" style="padding: 6px 12px; background: #1976d2; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600;">Detail</button>
+                    </div>
+                </div>
+            `;
+        }
+        
         return `
             <div class="detail-item">
                 <label>${escapeHtml(headerName)}</label>
@@ -993,5 +1071,338 @@ function showNotification(message, type = 'success') {
 function closePopup() {
     const popup = document.getElementById('detailPopup');
     popup.classList.remove('show');
+    document.body.style.overflow = 'auto';
+}
+
+// Fungsi untuk menyimpan data LIST NO PERJANJIAN BACKDATE ke Google Sheets
+async function savePerjanjianData(nomorSurat, data) {
+    try {
+        const url = new URL(APPS_SCRIPT_URL);
+        url.searchParams.append('action', 'savePerjanjian');
+        url.searchParams.append('unitKerja', data.unitKerja);
+        url.searchParams.append('noSP', data.noSP);
+        url.searchParams.append('perihal', data.perihal);
+        url.searchParams.append('key', nomorSurat);
+        
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-cache'
+        });
+
+        if (!response.ok) {
+            throw new Error('HTTP Error: ' + response.status);
+        }
+
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.error || 'Gagal menyimpan data perjanjian');
+        }
+        
+        return result;
+    } catch (error) {
+        console.error('Error saving perjanjian data:', error);
+        throw error;
+    }
+}
+
+// Fungsi untuk mengambil data LIST NO PERJANJIAN BACKDATE dari Google Sheets
+async function getPerjanjianData(nomorSurat) {
+    try {
+        const url = new URL(APPS_SCRIPT_URL);
+        url.searchParams.append('action', 'getPerjanjian');
+        url.searchParams.append('key', nomorSurat);
+        url.searchParams.append('_t', Date.now());
+        
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-cache'
+        });
+
+        if (!response.ok) {
+            throw new Error('HTTP Error: ' + response.status);
+        }
+
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.error || 'Gagal mengambil data perjanjian');
+        }
+        
+        // Transform data dari Google Sheets ke format yang diharapkan
+        return (result.data || []).map((item, index) => ({
+            id: item.rowNumber || index,
+            unitKerja: item['UNIT KERJA'] || item.unitKerja || '',
+            noSP: item['NO SP'] || item.noSP || '',
+            perihal: item['PERIHAL'] || item.perihal || '',
+            createdAt: item.createdAt || new Date().toISOString(),
+            rowNumber: item.rowNumber
+        }));
+    } catch (error) {
+        console.error('Error getting perjanjian data:', error);
+        return [];
+    }
+}
+
+// Fungsi untuk menghapus data LIST NO PERJANJIAN BACKDATE dari Google Sheets
+async function deletePerjanjianData(nomorSurat, rowNumber) {
+    try {
+        const url = new URL(APPS_SCRIPT_URL);
+        url.searchParams.append('action', 'deletePerjanjian');
+        url.searchParams.append('rowNumber', rowNumber);
+        url.searchParams.append('key', nomorSurat);
+        
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-cache'
+        });
+
+        if (!response.ok) {
+            throw new Error('HTTP Error: ' + response.status);
+        }
+
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.error || 'Gagal menghapus data perjanjian');
+        }
+        
+        return result;
+    } catch (error) {
+        console.error('Error deleting perjanjian data:', error);
+        throw error;
+    }
+}
+
+// Fungsi untuk membuka form Add Perjanjian (dapat diakses dari HTML)
+window.openAddPerjanjianForm = function(nomorSurat) {
+    const modal = document.getElementById('addPerjanjianModal');
+    if (!modal) {
+        console.error('Modal addPerjanjianModal tidak ditemukan');
+        return;
+    }
+    
+    const saveBtn = document.querySelector('#addPerjanjianModal button[onclick="savePerjanjian()"]');
+    const unitKerjaInput = document.getElementById('unitKerjaInput');
+    const noSPInput = document.getElementById('noSPInput');
+    const perihalInput = document.getElementById('perihalInput');
+    
+    // Set nomor surat sebagai hidden value
+    document.getElementById('nomorSuratHidden').value = nomorSurat;
+    document.getElementById('nomorSuratDisplay').textContent = nomorSurat;
+    
+    // Reset form dan enable semua input
+    if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Simpan';
+    }
+    if (unitKerjaInput) {
+        unitKerjaInput.disabled = false;
+        unitKerjaInput.value = '';
+    }
+    if (noSPInput) {
+        noSPInput.disabled = false;
+        noSPInput.value = '';
+    }
+    if (perihalInput) {
+        perihalInput.disabled = false;
+        perihalInput.value = '';
+    }
+    
+    modal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+}
+
+// Fungsi untuk menutup form Add Perjanjian (dapat diakses dari HTML)
+window.closeAddPerjanjianModal = function() {
+    const modal = document.getElementById('addPerjanjianModal');
+    const saveBtn = document.querySelector('#addPerjanjianModal button[onclick="savePerjanjian()"]');
+    const unitKerjaInput = document.getElementById('unitKerjaInput');
+    const noSPInput = document.getElementById('noSPInput');
+    const perihalInput = document.getElementById('perihalInput');
+    
+    if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Simpan';
+    }
+    if (unitKerjaInput) {
+        unitKerjaInput.disabled = false;
+        unitKerjaInput.value = '';
+    }
+    if (noSPInput) {
+        noSPInput.disabled = false;
+        noSPInput.value = '';
+    }
+    if (perihalInput) {
+        perihalInput.disabled = false;
+        perihalInput.value = '';
+    }
+    
+    modal.classList.remove('show');
+    document.body.style.overflow = 'auto';
+}
+
+// Fungsi untuk menyimpan data perjanjian (dapat diakses dari HTML)
+window.savePerjanjian = async function() {
+    const nomorSurat = document.getElementById('nomorSuratHidden').value;
+    const unitKerja = document.getElementById('unitKerjaInput').value.trim();
+    const noSP = document.getElementById('noSPInput').value.trim();
+    const perihal = document.getElementById('perihalInput').value.trim();
+    
+    if (!unitKerja || !noSP || !perihal) {
+        alert('Mohon lengkapi semua field!');
+        return;
+    }
+    
+    const data = {
+        unitKerja: unitKerja,
+        noSP: noSP,
+        perihal: perihal
+    };
+    
+    const saveBtn = document.querySelector('#addPerjanjianModal button[onclick="savePerjanjian()"]');
+    const unitKerjaInput = document.getElementById('unitKerjaInput');
+    const noSPInput = document.getElementById('noSPInput');
+    const perihalInput = document.getElementById('perihalInput');
+    
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Menyimpan...';
+    }
+    
+    if (unitKerjaInput) unitKerjaInput.disabled = true;
+    if (noSPInput) noSPInput.disabled = true;
+    if (perihalInput) perihalInput.disabled = true;
+    
+    try {
+        await savePerjanjianData(nomorSurat, data);
+        
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Simpan';
+        }
+        if (unitKerjaInput) unitKerjaInput.disabled = false;
+        if (noSPInput) noSPInput.disabled = false;
+        if (perihalInput) perihalInput.disabled = false;
+        
+        showNotification('Data berhasil disimpan!', 'success');
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        closeAddPerjanjianModal();
+    } catch (error) {
+        console.error('Error saving perjanjian:', error);
+        
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Simpan';
+        }
+        if (unitKerjaInput) unitKerjaInput.disabled = false;
+        if (noSPInput) noSPInput.disabled = false;
+        if (perihalInput) perihalInput.disabled = false;
+        
+        showNotification('Error: ' + error.message, 'error');
+    }
+}
+
+// Fungsi untuk membuka modal Detail Perjanjian (dapat diakses dari HTML)
+window.openDetailPerjanjian = async function(nomorSurat) {
+    const modal = document.getElementById('detailPerjanjianModal');
+    if (!modal) {
+        console.error('Modal detailPerjanjianModal tidak ditemukan');
+        return;
+    }
+    
+    const content = document.getElementById('detailPerjanjianContent');
+    const title = document.getElementById('detailPerjanjianTitle');
+    const closeBtn = document.querySelector('#detailPerjanjianModal .close-btn');
+    
+    title.textContent = `LIST NO PERJANJIAN BACKDATE - ${nomorSurat}`;
+    content.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;"><div style="display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #1976d2; border-radius: 50%; animation: spin 1s linear infinite;"></div><div style="margin-top: 10px;">Memuat data...</div></div>';
+    
+    if (closeBtn) closeBtn.style.pointerEvents = 'none';
+    
+    modal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+    
+    try {
+        const data = await getPerjanjianData(nomorSurat);
+        
+        if (data.length === 0) {
+            content.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">Belum ada data perjanjian untuk nomor surat ini.</div>';
+        } else {
+            content.innerHTML = `
+                <div class="perjanjian-list">
+                    ${data.map((item, index) => `
+                        <div class="perjanjian-item" style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 12px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #e0e0e0;">
+                                <strong style="color: #1976d2; font-size: 0.95rem; font-weight: 600;">${index + 1}</strong>
+                                <button onclick="deletePerjanjianItem('${escapeHtml(nomorSurat)}', ${item.rowNumber || item.id})" style="padding: 6px 12px; background: #f44336; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.3s;" onmouseover="this.style.background='#d32f2f'" onmouseout="this.style.background='#f44336'">Hapus</button>
+                            </div>
+                            <div style="margin-bottom: 10px; padding: 8px 0;">
+                                <div style="font-weight: 600; color: #666; font-size: 0.8rem; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">UNIT KERJA</div>
+                                <div style="color: #333; font-size: 0.95rem; line-height: 1.5;">${escapeHtml(item.unitKerja)}</div>
+                            </div>
+                            <div style="margin-bottom: 10px; padding: 8px 0;">
+                                <div style="font-weight: 600; color: #666; font-size: 0.8rem; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">NO SP</div>
+                                <div style="color: #333; font-size: 0.95rem; line-height: 1.5;">${escapeHtml(item.noSP)}</div>
+                            </div>
+                            <div style="margin-bottom: 10px; padding: 8px 0;">
+                                <div style="font-weight: 600; color: #666; font-size: 0.8rem; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">PERIHAL</div>
+                                <div style="color: #333; font-size: 0.95rem; line-height: 1.5; word-break: break-word;">${escapeHtml(item.perihal)}</div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        if (closeBtn) closeBtn.style.pointerEvents = 'auto';
+    } catch (error) {
+        console.error('Error loading perjanjian data:', error);
+        content.innerHTML = `<div style="text-align: center; padding: 40px; color: #f44336;"><strong>Error:</strong><br>${escapeHtml(error.message)}</div>`;
+        if (closeBtn) closeBtn.style.pointerEvents = 'auto';
+    }
+}
+
+// Fungsi untuk menghapus item perjanjian (dapat diakses dari HTML)
+window.deletePerjanjianItem = async function(nomorSurat, rowNumber) {
+    if (!confirm('Apakah Anda yakin ingin menghapus data ini?')) {
+        return;
+    }
+    
+    const content = document.getElementById('detailPerjanjianContent');
+    const originalContent = content ? content.innerHTML : '';
+    
+    if (content) {
+        content.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;"><div style="display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #1976d2; border-radius: 50%; animation: spin 1s linear infinite;"></div><div style="margin-top: 10px;">Menghapus data...</div></div>';
+    }
+    
+    try {
+        await deletePerjanjianData(nomorSurat, rowNumber);
+        
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        await openDetailPerjanjian(nomorSurat);
+        
+        showNotification('Data berhasil dihapus!', 'success');
+    } catch (error) {
+        console.error('Error deleting perjanjian item:', error);
+        
+        if (content) {
+            content.innerHTML = originalContent;
+        }
+        
+        showNotification('Error: ' + error.message, 'error');
+    }
+}
+
+// Fungsi untuk menutup modal Detail Perjanjian (dapat diakses dari HTML)
+window.closeDetailPerjanjianModal = function() {
+    const modal = document.getElementById('detailPerjanjianModal');
+    modal.classList.remove('show');
     document.body.style.overflow = 'auto';
 }
