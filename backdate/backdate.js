@@ -102,13 +102,14 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function loadUnitKerjaOptions() {
-    const unitKerjaDatalist = document.getElementById('unitKerjaList');
-    if (!unitKerjaDatalist) return;
+    const unitKerjaSelect = document.getElementById('unitKerjaInput');
+    if (!unitKerjaSelect) return;
     
     UNIT_KERJA_LIST.forEach(unit => {
         const option = document.createElement('option');
         option.value = unit;
-        unitKerjaDatalist.appendChild(option);
+        option.textContent = unit;
+        unitKerjaSelect.appendChild(option);
     });
 }
 
@@ -185,26 +186,6 @@ function setupEventListeners() {
     const noSPInput = document.getElementById('noSPInput');
     const perihalInput = document.getElementById('perihalInput');
     
-    if (unitKerjaInput) {
-        unitKerjaInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                noSPInput?.focus();
-            }
-        });
-        
-        unitKerjaInput.addEventListener('input', (e) => {
-            const value = e.target.value.toLowerCase();
-            if (value.length > 0) {
-                const matches = UNIT_KERJA_LIST.filter(unit => 
-                    unit.toLowerCase().includes(value)
-                );
-                if (matches.length > 0) {
-                    e.target.setCustomValidity('');
-                }
-            }
-        });
-    }
     
     if (noSPInput) {
         noSPInput.addEventListener('keypress', (e) => {
@@ -1355,15 +1336,6 @@ window.savePerjanjian = async function() {
     if (!unitKerja || !noSP || !perihal) {
         alert('Mohon lengkapi semua field!');
         return;
-    }
-    
-    const isValidUnit = UNIT_KERJA_LIST.some(unit => unit.toLowerCase() === unitKerja.toLowerCase());
-    if (!isValidUnit) {
-        const confirmUse = confirm('Unit Kerja yang Anda masukkan tidak ada dalam daftar. Apakah Anda ingin tetap menggunakan "' + unitKerja + '"?');
-        if (!confirmUse) {
-            if (unitKerjaInput) unitKerjaInput.focus();
-            return;
-        }
     }
     
     const data = {
