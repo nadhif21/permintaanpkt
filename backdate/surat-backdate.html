@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Surat Yang Backdate</title>
+    <link rel="stylesheet" href="backdate.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <a href="../" class="back-link">← Kembali</a>
+                <span class="header-icon">📄</span>
+                <h1>Data Surat Yang Backdate</h1>
+                <button id="logoutBtn" class="logout-btn" title="Logout">🚪</button>
+            </div>
+        </header>
+
+        <div class="controls">
+            <div class="search-section">
+                <input type="text" id="searchInput" placeholder="Cari data (Unit Kerja, No SP, Perihal, Key)">
+            </div>
+
+            <div class="filter-section">
+                <div class="stats-text">
+                    Menampilkan <span id="resultCount">0</span> data
+                </div>
+                <div class="filter-controls">
+                    <button id="refreshBtn" class="refresh-btn">Refresh Data</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table id="dataTable">
+                <thead>
+                    <tr>
+                        <th>No</th>
+                        <th>UNIT KERJA</th>
+                        <th>NOMOR SURAT BACKDATE</th>
+                        <th>PERIHAL</th>
+                        <th>Key</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr>
+                        <td colspan="5" class="loading">Memuat data...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="cardsContainer" class="cards-container"></div>
+    </div>
+
+    <script src="../auth.js"></script>
+    <script src="surat-backdate.js"></script>
+</body>
+</html>

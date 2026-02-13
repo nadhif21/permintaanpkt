@@ -9,6 +9,88 @@ let currentFilters = {
     tahun: ''
 };
 
+const UNIT_KERJA_LIST = [
+    'Dep Keamanan',
+    'Dep Manajemen Aset',
+    'Dep Pelayanan Umum',
+    'Dep. Administrasi Korporat',
+    'Dep. Administrasi Pemasaran & Penjualan',
+    'Dep. Akuntansi',
+    'Dep. Anggaran',
+    'Dep. Audit Bisnis & Keuangan',
+    'Dep. Bengkel',
+    'Dep. Bisnis dan Administrasi',
+    'Dep. Hubungan Investor',
+    'Dep. Hukum',
+    'Dep. Inspeksi Teknik 1',
+    'Dep. Inspeksi Teknik 2',
+    'Dep. IT Service Business Partner',
+    'Dep. Keandalan Pabrik',
+    'Dep. Keselamatan & Kesehatan Kerja',
+    'Dep. Keuangan',
+    'Dep. Komunikasi Korporat',
+    'Dep. Konsultasi & Jaminan Kualitas',
+    'Dep. Laboratorium',
+    'Dep. Lingkungan Hidup',
+    'Dep. Manajemen & Pengembangan SDM',
+    'Dep. Manajemen Risiko Korporasi',
+    'Dep. Manufacturing',
+    'Dep. Operasi Pabrik 1A',
+    'Dep. Operasi Pabrik 2',
+    'Dep. Operasi Pabrik 3',
+    'Dep. Operasi Pabrik 4',
+    'Dep. Operasi Pabrik 5',
+    'Dep. Operasi Pabrik 6 / EX P1',
+    'Dep. Operasi Pabrik 7',
+    'Dep. Operasional SDM',
+    'Dep. Pelabuhan dan Pengapalan',
+    'Dep. Pelaporan Manajemen',
+    'Dep. Pemeliharaan Instrumen',
+    'Dep. Pemeliharaan Listrik',
+    'Dep. Pemeliharaan Mekanik',
+    'Dep. Pengadaan Barang',
+    'Dep. Pengadaan Jasa',
+    'Dep. Pengelolaan Pelanggan',
+    'Dep. Pengembangan Korporat',
+    'Dep. Perencanaan & Monitoring',
+    'Dep. Perencanaan & Pengendalian Har.',
+    'Dep. Perencanaan & Pengendalian TA',
+    'Dep. Perencanaan Penerimaan& Pergudangan',
+    'Dep. Portofolio Bisnis',
+    'Dep. Proses & Pengelolaan Energi',
+    'Dep. Rekayasa & Konstruksi',
+    'Dep. Riset',
+    'Dep. Sistem Manajemen Terpadu & Inovasi',
+    'Dep. Strategic Delivery Unit',
+    'Dep. Teknik dan Kontrol Kualitas',
+    'Departemen TJSL',
+    'Direktur Keuangan dan Umum',
+    'Direktur Manajemen Risiko',
+    'Direktur Operasi',
+    'Direktur Pengembangan',
+    'Direktur Utama',
+    'Komp. Administrasi Keuangan',
+    'Komp. HSE & Teknologi',
+    'Komp. Operasi 1',
+    'Komp. Operasi 2',
+    'Komp. Pemeliharaan Pabrik',
+    'Komp. Pengembangan & Portofolio Bisnis',
+    'Komp. Rantai Pasok',
+    'Komp. Satuan Pengawasan Intern',
+    'Komp. SBU Jasa Pelayanan Pabrik',
+    'Komp. SDM',
+    'Komp. Sekretaris Perusahaan',
+    'Komp. Tata Kelola & Manajemen Risiko',
+    'Komp. Transformasi Bisnis',
+    'Kompartemen Umum',
+    'Proyek Soda Ash',
+    'PT Katts',
+    'PT KIE',
+    'Sekretaris Dewan Komisaris',
+    'VP Operasi Shift',
+    'YKHT'
+];
+
 document.addEventListener('DOMContentLoaded', () => {
     if (!checkAuth()) {
         return;
@@ -16,7 +98,19 @@ document.addEventListener('DOMContentLoaded', () => {
     loadData();
     setupEventListeners();
     setupLogout();
+    loadUnitKerjaOptions();
 });
+
+function loadUnitKerjaOptions() {
+    const unitKerjaDatalist = document.getElementById('unitKerjaList');
+    if (!unitKerjaDatalist) return;
+    
+    UNIT_KERJA_LIST.forEach(unit => {
+        const option = document.createElement('option');
+        option.value = unit;
+        unitKerjaDatalist.appendChild(option);
+    });
+}
 
 function setupLogout() {
     const logoutBtn = document.getElementById('logoutBtn');
@@ -57,7 +151,6 @@ function setupEventListeners() {
         }
     });
 
-    // Event listener untuk modal Add Perjanjian
     const addPerjanjianModal = document.getElementById('addPerjanjianModal');
     if (addPerjanjianModal) {
         addPerjanjianModal.addEventListener('click', (e) => {
@@ -67,7 +160,6 @@ function setupEventListeners() {
         });
     }
 
-    // Event listener untuk modal Detail Perjanjian
     const detailPerjanjianModal = document.getElementById('detailPerjanjianModal');
     if (detailPerjanjianModal) {
         detailPerjanjianModal.addEventListener('click', (e) => {
@@ -77,7 +169,6 @@ function setupEventListeners() {
         });
     }
 
-    // Event listener untuk ESC key
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             if (addPerjanjianModal && addPerjanjianModal.classList.contains('show')) {
@@ -90,7 +181,6 @@ function setupEventListeners() {
         }
     });
 
-    // Event listener untuk Enter key di form input
     const unitKerjaInput = document.getElementById('unitKerjaInput');
     const noSPInput = document.getElementById('noSPInput');
     const perihalInput = document.getElementById('perihalInput');
@@ -100,6 +190,18 @@ function setupEventListeners() {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 noSPInput?.focus();
+            }
+        });
+        
+        unitKerjaInput.addEventListener('input', (e) => {
+            const value = e.target.value.toLowerCase();
+            if (value.length > 0) {
+                const matches = UNIT_KERJA_LIST.filter(unit => 
+                    unit.toLowerCase().includes(value)
+                );
+                if (matches.length > 0) {
+                    e.target.setCustomValidity('');
+                }
             }
         });
     }
@@ -202,6 +304,11 @@ async function loadData() {
 
             const originalRowNumber = row.rowNumber || (index + 2);
             
+            const nomorSuratKey = findColumnValue(row, 'Nomor Surat Backdate DOF') || 
+                                  findColumnValue(row, 'Nomor Surat Permintaan Backdate') ||
+                                  findColumnValue(row, 'NOMOR SURAT BACKDATE DOF') ||
+                                  '';
+            
             return {
                 id: index,
                 rowNumber: originalRowNumber,
@@ -214,6 +321,7 @@ async function loadData() {
                 G: getColumnValue(6),
                 H: getColumnValue(7),
                 I: getColumnValue(8),
+                nomorSuratKey: nomorSuratKey,
                 timestamp: findColumnValue(row, 'Timestamp'),
                 status: (findColumnValue(row, 'Status') || '').trim(),
                 flag: (findColumnValue(row, 'Flag') || '').trim(),
@@ -230,7 +338,7 @@ async function loadData() {
     } catch (error) {
         console.error('Error loading data:', error);
         document.getElementById('tableBody').innerHTML = 
-            '<tr><td colspan="8" class="loading">' +
+            '<tr><td colspan="9" class="loading">' +
             '<strong style="color: #dc3545;">Error: ' + escapeHtml(error.message) + '</strong>' +
             '</td></tr>';
         document.getElementById('cardsContainer').innerHTML = 
@@ -350,7 +458,7 @@ function filterAndDisplayData() {
 
         if (searchTerm) {
             const searchable = [
-                row.A, row.B, row.E, row.G, row.H, row.I
+                row.A, row.B, row.E, row.G, row.H, row.I, row.nomorSuratKey
             ].join(' ').toLowerCase();
             
             if (!searchable.includes(searchTerm)) {
@@ -371,7 +479,7 @@ function displayData() {
     const isMobile = window.innerWidth <= 768;
     
     if (filteredData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="loading">Tidak ada data yang ditemukan</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="loading">Tidak ada data yang ditemukan</td></tr>';
         cardsContainer.innerHTML = '<div class="loading">Tidak ada data yang ditemukan</div>';
         return;
     }
@@ -434,7 +542,6 @@ function displayTable() {
     const tbody = document.getElementById('tableBody');
     if (!tbody) return;
     
-    // Urutan: A (Tanggal Input), G (Nama), H (Unit kerja), E (Tanggal Backdate), B (Petugas)
     const displayColumns = [0, 6, 7, 4, 1];
     
     tbody.innerHTML = filteredData.map((row) => {
@@ -442,7 +549,6 @@ function displayTable() {
             let headerName = spreadsheetHeaders[index] || `Kolom ${String.fromCharCode(65 + index)}`;
             const colLetter = index === 0 ? 'A' : index === 1 ? 'B' : index === 4 ? 'E' : index === 6 ? 'G' : index === 7 ? 'H' : 'I';
             
-            // Mapping header name
             if (index === 0) {
                 headerName = 'Tanggal Input';
             } else if (index === 6) {
@@ -459,13 +565,17 @@ function displayTable() {
             value = formatValueForDisplay(value, headerName);
             return highlightText(value);
         });
+        
+        const nomorSuratCell = highlightText(row.nomorSuratKey || '');
 
         const statusCell = formatStatus(row.status);
         const flagCell = formatFlag(row.flag);
 
         return `
             <tr data-row-id="${row.id}" class="data-row">
-                ${cells.map(cell => `<td>${cell}</td>`).join('')}
+                <td>${cells[0]}</td>
+                <td>${nomorSuratCell}</td>
+                ${cells.slice(1).map(cell => `<td>${cell}</td>`).join('')}
                 <td onclick="event.stopPropagation()">${statusCell}</td>
                 <td onclick="event.stopPropagation()">${flagCell}</td>
             </tr>
@@ -491,16 +601,14 @@ function displayTable() {
 
 function displayCards() {
     const cardsContainer = document.getElementById('cardsContainer');
-    // Urutan: A (Tanggal Input), G (Nama), H (Unit kerja), E (Tanggal Backdate), B (Petugas)
     const displayColumns = [0, 6, 7, 4, 1];
     
     cardsContainer.innerHTML = filteredData.map(row => {
         const headers = spreadsheetHeaders;
-        const cardRows = displayColumns.map(index => {
+        const cardRowsArray = displayColumns.map(index => {
             let headerName = headers[index] || `Kolom ${String.fromCharCode(65 + index)}`;
             const colLetter = index === 0 ? 'A' : index === 1 ? 'B' : index === 4 ? 'E' : index === 6 ? 'G' : index === 7 ? 'H' : 'I';
             
-            // Mapping header name
             if (index === 0) {
                 headerName = 'Tanggal Input';
             } else if (index === 6) {
@@ -521,7 +629,16 @@ function displayCards() {
                     <div class="card-value">${highlightText(value)}</div>
                 </div>
             `;
-        }).join('');
+        });
+        
+        const nomorSuratRow = row.nomorSuratKey ? `
+            <div class="card-row">
+                <div class="card-label">Nomor Surat Permintaan</div>
+                <div class="card-value">${highlightText(row.nomorSuratKey)}</div>
+            </div>
+        ` : '';
+        
+        const allCardRows = cardRowsArray[0] + nomorSuratRow + cardRowsArray.slice(1).join('');
 
         const statusRow = `
             <div class="card-row">
@@ -539,7 +656,7 @@ function displayCards() {
 
         return `
             <div class="card" data-row-id="${row.id}">
-                ${cardRows}
+                ${allCardRows}
                 ${statusRow}
                 ${flagRow}
             </div>
@@ -643,12 +760,10 @@ function formatValueForDisplay(value, headerName) {
     
     const headerLower = headerName.toLowerCase();
     
-    // Tanggal Backdate (kolom E) - tanpa jam
     if (headerLower.includes('tanggal backdate') || headerLower.includes('tanggal pembukaan backdate')) {
         return formatDateOnly(value);
     }
     
-    // Tanggal Input dan timestamp lainnya - dengan jam
     const isTimestamp = headerLower.includes('tanggal input') ||
                         headerLower.includes('timestamp') ||
                         (headerLower.includes('waktu') && !headerLower.includes('selesai')) ||
@@ -669,13 +784,11 @@ function updateTableHeaders() {
     const thead = document.querySelector('#dataTable thead tr');
     if (!thead || spreadsheetHeaders.length === 0) return;
     
-    // Urutan: A (Tanggal Input), G (Nama), H (Unit kerja), E (Tanggal Backdate), B (Petugas)
     const displayColumns = [0, 6, 7, 4, 1];
     
-    thead.innerHTML = displayColumns.map(index => {
+    const headers = displayColumns.map(index => {
         let headerName = spreadsheetHeaders[index] || `Kolom ${String.fromCharCode(65 + index)}`;
         
-        // Mapping header name
         if (index === 0) {
             headerName = 'Tanggal Input';
         } else if (index === 6) {
@@ -689,7 +802,11 @@ function updateTableHeaders() {
         }
         
         return `<th>${escapeHtml(headerName)}</th>`;
-    }).join('') + '<th>Status</th><th>Flag</th>';
+    });
+    
+    headers.splice(1, 0, '<th>Nomor Surat Permintaan</th>');
+    
+    thead.innerHTML = headers.join('') + '<th>Status</th><th>Flag</th>';
 }
 
 function showDetail(rowId) {
@@ -712,7 +829,6 @@ function showDetail(rowId) {
         }
     }
     
-    // Cari nama dari kolom G (Nama yang Dibuka Backdate)
     if (!dataName && row.G) {
         dataName = row.G;
     }
@@ -742,7 +858,6 @@ function showDetail(rowId) {
     const isCompleted = (currentStatus === 'Closed' || currentStatus === 'Cancelled') && 
                         currentFlag && currentTimestampSelesai && currentFlag.toLowerCase() === 'merah';
     
-    // Tampilkan semua kolom dari spreadsheet
     const columns = [];
     for (let i = 0; i < spreadsheetHeaders.length; i++) {
         columns.push(String.fromCharCode(65 + i));
@@ -752,7 +867,6 @@ function showDetail(rowId) {
         const colIndex = col.charCodeAt(0) - 65;
         let headerName = spreadsheetHeaders[colIndex] || `Kolom ${col}`;
         
-        // Mapping header name untuk tampilan yang lebih user-friendly
         if (colIndex === 0 && headerName.toLowerCase().includes('timestamp')) {
             headerName = 'Tanggal Input';
         } else if (colIndex === 1 && headerName.toLowerCase().includes('nama admin')) {
@@ -771,7 +885,6 @@ function showDetail(rowId) {
             headerName = 'Tanggal Status';
         }
         
-        // Skip Status dan Flag (akan ditampilkan di bawah jika completed)
         if (colIndex === statusColIndex || colIndex === flagColIndex) {
             return '';
         }
@@ -784,11 +897,9 @@ function showDetail(rowId) {
         
         const headerLower = headerName.toLowerCase();
         
-        // Tanggal Backdate (kolom E) - tanpa jam
         if (headerLower.includes('tanggal backdate') || headerLower.includes('tanggal pembukaan backdate')) {
             value = formatDateOnly(value);
         } else {
-            // Tanggal Input dan timestamp lainnya - dengan jam
             const isTimestamp = headerLower.includes('tanggal input') ||
                                 headerLower.includes('timestamp') ||
                                 (headerLower.includes('waktu') && !headerLower.includes('selesai')) ||
@@ -801,13 +912,11 @@ function showDetail(rowId) {
             }
         }
         
-        // Cek apakah ini field "Nomor Surat Backdate DOF"
         const isNomorSuratBackdateDOF = headerLower.includes('nomor surat backdate dof') || 
                                         headerLower.includes('nomor surat backdate') ||
                                         headerLower.includes('no surat backdate dof');
         
         if (isNomorSuratBackdateDOF && value) {
-            // Tambahkan button Add dan Detail untuk field Nomor Surat Backdate DOF
             return `
                 <div class="detail-item">
                     <label>${escapeHtml(headerName)}</label>
@@ -964,7 +1073,6 @@ function showDetail(rowId) {
             if (isClosedOrCancelled) {
                 updateData.flag = 'Merah';
                 
-                // Selalu update timestamp saat simpan (untuk waktu selesai)
                 updateData.timestamp = new Date().toISOString();
             }
             
@@ -1074,7 +1182,6 @@ function closePopup() {
     document.body.style.overflow = 'auto';
 }
 
-// Fungsi untuk menyimpan data LIST NO PERJANJIAN BACKDATE ke Google Sheets
 async function savePerjanjianData(nomorSurat, data) {
     try {
         const url = new URL(APPS_SCRIPT_URL);
@@ -1107,7 +1214,6 @@ async function savePerjanjianData(nomorSurat, data) {
     }
 }
 
-// Fungsi untuk mengambil data LIST NO PERJANJIAN BACKDATE dari Google Sheets
 async function getPerjanjianData(nomorSurat) {
     try {
         const url = new URL(APPS_SCRIPT_URL);
@@ -1131,7 +1237,6 @@ async function getPerjanjianData(nomorSurat) {
             throw new Error(result.error || 'Gagal mengambil data perjanjian');
         }
         
-        // Transform data dari Google Sheets ke format yang diharapkan
         return (result.data || []).map((item, index) => ({
             id: item.rowNumber || index,
             unitKerja: item['UNIT KERJA'] || item.unitKerja || '',
@@ -1146,7 +1251,6 @@ async function getPerjanjianData(nomorSurat) {
     }
 }
 
-// Fungsi untuk menghapus data LIST NO PERJANJIAN BACKDATE dari Google Sheets
 async function deletePerjanjianData(nomorSurat, rowNumber) {
     try {
         const url = new URL(APPS_SCRIPT_URL);
@@ -1177,7 +1281,6 @@ async function deletePerjanjianData(nomorSurat, rowNumber) {
     }
 }
 
-// Fungsi untuk membuka form Add Perjanjian (dapat diakses dari HTML)
 window.openAddPerjanjianForm = function(nomorSurat) {
     const modal = document.getElementById('addPerjanjianModal');
     if (!modal) {
@@ -1190,11 +1293,9 @@ window.openAddPerjanjianForm = function(nomorSurat) {
     const noSPInput = document.getElementById('noSPInput');
     const perihalInput = document.getElementById('perihalInput');
     
-    // Set nomor surat sebagai hidden value
     document.getElementById('nomorSuratHidden').value = nomorSurat;
     document.getElementById('nomorSuratDisplay').textContent = nomorSurat;
     
-    // Reset form dan enable semua input
     if (saveBtn) {
         saveBtn.disabled = false;
         saveBtn.textContent = 'Simpan';
@@ -1216,7 +1317,6 @@ window.openAddPerjanjianForm = function(nomorSurat) {
     document.body.style.overflow = 'hidden';
 }
 
-// Fungsi untuk menutup form Add Perjanjian (dapat diakses dari HTML)
 window.closeAddPerjanjianModal = function() {
     const modal = document.getElementById('addPerjanjianModal');
     const saveBtn = document.querySelector('#addPerjanjianModal button[onclick="savePerjanjian()"]');
@@ -1245,16 +1345,25 @@ window.closeAddPerjanjianModal = function() {
     document.body.style.overflow = 'auto';
 }
 
-// Fungsi untuk menyimpan data perjanjian (dapat diakses dari HTML)
 window.savePerjanjian = async function() {
     const nomorSurat = document.getElementById('nomorSuratHidden').value;
-    const unitKerja = document.getElementById('unitKerjaInput').value.trim();
+    const unitKerjaInput = document.getElementById('unitKerjaInput');
+    const unitKerja = unitKerjaInput ? unitKerjaInput.value.trim() : '';
     const noSP = document.getElementById('noSPInput').value.trim();
     const perihal = document.getElementById('perihalInput').value.trim();
     
     if (!unitKerja || !noSP || !perihal) {
         alert('Mohon lengkapi semua field!');
         return;
+    }
+    
+    const isValidUnit = UNIT_KERJA_LIST.some(unit => unit.toLowerCase() === unitKerja.toLowerCase());
+    if (!isValidUnit) {
+        const confirmUse = confirm('Unit Kerja yang Anda masukkan tidak ada dalam daftar. Apakah Anda ingin tetap menggunakan "' + unitKerja + '"?');
+        if (!confirmUse) {
+            if (unitKerjaInput) unitKerjaInput.focus();
+            return;
+        }
     }
     
     const data = {
@@ -1264,7 +1373,6 @@ window.savePerjanjian = async function() {
     };
     
     const saveBtn = document.querySelector('#addPerjanjianModal button[onclick="savePerjanjian()"]');
-    const unitKerjaInput = document.getElementById('unitKerjaInput');
     const noSPInput = document.getElementById('noSPInput');
     const perihalInput = document.getElementById('perihalInput');
     
@@ -1308,7 +1416,6 @@ window.savePerjanjian = async function() {
     }
 }
 
-// Fungsi untuk membuka modal Detail Perjanjian (dapat diakses dari HTML)
 window.openDetailPerjanjian = async function(nomorSurat) {
     const modal = document.getElementById('detailPerjanjianModal');
     if (!modal) {
@@ -1320,7 +1427,7 @@ window.openDetailPerjanjian = async function(nomorSurat) {
     const title = document.getElementById('detailPerjanjianTitle');
     const closeBtn = document.querySelector('#detailPerjanjianModal .close-btn');
     
-    title.textContent = `LIST NO PERJANJIAN BACKDATE - ${nomorSurat}`;
+    title.textContent = `DAFTAR SURAT BACKDATE - ${nomorSurat}`;
     content.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;"><div style="display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #1976d2; border-radius: 50%; animation: spin 1s linear infinite;"></div><div style="margin-top: 10px;">Memuat data...</div></div>';
     
     if (closeBtn) closeBtn.style.pointerEvents = 'none';
@@ -1347,7 +1454,7 @@ window.openDetailPerjanjian = async function(nomorSurat) {
                                 <div style="color: #333; font-size: 0.95rem; line-height: 1.5;">${escapeHtml(item.unitKerja)}</div>
                             </div>
                             <div style="margin-bottom: 10px; padding: 8px 0;">
-                                <div style="font-weight: 600; color: #666; font-size: 0.8rem; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">NO SP</div>
+                                <div style="font-weight: 600; color: #666; font-size: 0.8rem; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">NOMOR SURAT BACKDATE</div>
                                 <div style="color: #333; font-size: 0.95rem; line-height: 1.5;">${escapeHtml(item.noSP)}</div>
                             </div>
                             <div style="margin-bottom: 10px; padding: 8px 0;">
@@ -1368,7 +1475,6 @@ window.openDetailPerjanjian = async function(nomorSurat) {
     }
 }
 
-// Fungsi untuk menghapus item perjanjian (dapat diakses dari HTML)
 window.deletePerjanjianItem = async function(nomorSurat, rowNumber) {
     if (!confirm('Apakah Anda yakin ingin menghapus data ini?')) {
         return;
@@ -1400,7 +1506,6 @@ window.deletePerjanjianItem = async function(nomorSurat, rowNumber) {
     }
 }
 
-// Fungsi untuk menutup modal Detail Perjanjian (dapat diakses dari HTML)
 window.closeDetailPerjanjianModal = function() {
     const modal = document.getElementById('detailPerjanjianModal');
     modal.classList.remove('show');

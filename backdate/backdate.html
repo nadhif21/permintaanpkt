@@ -68,7 +68,7 @@
                 </thead>
                 <tbody id="tableBody">
                     <tr>
-                        <td colspan="8" class="loading">Memuat data...</td>
+                        <td colspan="9" class="loading">Memuat data...</td>
                     </tr>
                 </tbody>
             </table>
@@ -102,20 +102,21 @@
     <div id="addPerjanjianModal" class="popup">
         <div class="popup-content" style="max-width: 600px;">
             <span class="close-btn" onclick="closeAddPerjanjianModal()">&times;</span>
-            <h2>Tambah LIST NO PERJANJIAN BACKDATE</h2>
+            <h2>TAMBAH DATA DETAIL BACKDATE</h2>
             <div class="detail-content">
                 <input type="hidden" id="nomorSuratHidden" value="">
                 <div class="detail-item">
-                    <label>NOMOR SURAT BACKDATE DOF:</label>
+                    <label>NOMOR SURAT PERMINTAAN BACKDATE:</label>
                     <div class="value" id="nomorSuratDisplay" style="font-weight: 600; color: #1976d2;"></div>
                 </div>
                 <div class="detail-item">
                     <label for="unitKerjaInput">UNIT KERJA:</label>
-                    <input type="text" id="unitKerjaInput" class="form-input" placeholder="Masukkan Unit Kerja" required>
+                    <input type="text" id="unitKerjaInput" class="form-input" list="unitKerjaList" autocomplete="off" placeholder="Ketik atau pilih Unit Kerja" required>
+                    <datalist id="unitKerjaList"></datalist>
                 </div>
                 <div class="detail-item">
-                    <label for="noSPInput">NO SP:</label>
-                    <input type="text" id="noSPInput" class="form-input" placeholder="Masukkan No SP" required>
+                    <label for="noSPInput">NOMOR SURAT BACKDATE:</label>
+                    <input type="text" id="noSPInput" class="form-input" placeholder="Masukkan Nomor Surat Backdate" required>
                 </div>
                 <div class="detail-item">
                     <label for="perihalInput">PERIHAL:</label>
