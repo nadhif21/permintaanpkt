@@ -170,7 +170,8 @@ async function loadData() {
                 status: (findColumnValue(row, 'Status') || '').trim(),
                 flag: (findColumnValue(row, 'Flag') || '').trim(),
                 petugas: (findColumnValue(row, 'Petugas') || '').trim(),
-                waktuSelesai: (findColumnValue(row, 'Waktu Selesai') || '').trim()
+                waktuSelesai: (findColumnValue(row, 'Waktu Selesai') || '').trim(),
+                keterangan: (findColumnValue(row, 'Keterangan') || '').trim()
             };
         });
 
@@ -385,6 +386,15 @@ function getPetugasColumnIndex() {
 function getWaktuSelesaiColumnIndex() {
     for (let i = 0; i < spreadsheetHeaders.length; i++) {
         if (spreadsheetHeaders[i] && (spreadsheetHeaders[i].toLowerCase().includes('waktu selesai') || spreadsheetHeaders[i].toLowerCase().includes('waktuselesai'))) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+function getKeteranganColumnIndex() {
+    for (let i = 0; i < spreadsheetHeaders.length; i++) {
+        if (spreadsheetHeaders[i] && spreadsheetHeaders[i].toLowerCase().includes('keterangan')) {
             return i;
         }
     }
@@ -666,11 +676,13 @@ function showDetail(rowId) {
     const flagColIndex = getFlagColumnIndex();
     const petugasColIndex = getPetugasColumnIndex();
     const waktuSelesaiColIndex = getWaktuSelesaiColumnIndex();
+    const keteranganColIndex = getKeteranganColumnIndex();
     
     const currentStatus = (row.status || '').trim();
     const currentFlag = (row.flag || '').trim();
     const currentPetugas = (row.petugas || '').trim();
     const currentWaktuSelesai = (row.waktuSelesai || '').trim();
+    const currentKeterangan = (row.keterangan || '').trim();
     
     const isCompleted = (currentStatus === 'Closed' || currentStatus === 'Cancelled') && 
                         currentFlag && currentPetugas;
@@ -696,7 +708,7 @@ function showDetail(rowId) {
         }
         
         if (colIndex === statusColIndex || colIndex === flagColIndex || 
-            colIndex === petugasColIndex) {
+            colIndex === petugasColIndex || colIndex === keteranganColIndex) {
             return '';
         }
         
@@ -777,15 +789,27 @@ function showDetail(rowId) {
                 </div>
             `;
         }
+        
+        if (currentKeterangan) {
+            const keteranganHeader = spreadsheetHeaders[keteranganColIndex] || 'Keterangan';
+            detailContent.innerHTML += `
+                <div class="detail-item">
+                    <label>${escapeHtml(keteranganHeader)}</label>
+                    <div class="value">${escapeHtml(currentKeterangan)}</div>
+                </div>
+            `;
+        }
     }
 
     const statusSelect = document.getElementById('statusSelect');
     const flagSelect = document.getElementById('flagSelect');
     const petugasSelect = document.getElementById('petugasSelect');
+    const keteranganInput = document.getElementById('keteranganInput');
     const saveBtn = document.getElementById('saveBtn');
     const statusSection = document.getElementById('statusSection');
     const flagSection = document.getElementById('flagSection');
     const petugasSection = document.getElementById('petugasSection');
+    const keteranganSection = document.getElementById('keteranganSection');
     
     saveBtn.textContent = 'Simpan';
     
@@ -807,6 +831,12 @@ function showDetail(rowId) {
         petugasSelect.value = '';
     }
     
+    if (currentKeterangan) {
+        keteranganInput.value = currentKeterangan;
+    } else {
+        keteranganInput.value = '';
+    }
+    
     currentDetailRow = row;
     
     function toggleDropdowns() {
@@ -817,16 +847,19 @@ function showDetail(rowId) {
             statusSection.style.display = 'none';
             flagSection.style.display = 'none';
             petugasSection.style.display = 'none';
+            keteranganSection.style.display = 'none';
             saveBtn.style.display = 'none';
         } else if (isClosedOrCancelled) {
             statusSection.style.display = 'flex';
             flagSection.style.display = 'flex';
             petugasSection.style.display = 'flex';
+            keteranganSection.style.display = 'flex';
             saveBtn.style.display = 'block';
         } else {
             statusSection.style.display = 'flex';
             flagSection.style.display = 'none';
             petugasSection.style.display = 'none';
+            keteranganSection.style.display = 'none';
             saveBtn.style.display = 'none';
         }
     }
@@ -841,10 +874,12 @@ function showDetail(rowId) {
         const selectedStatus = statusSelect.value;
         const selectedFlag = flagSelect.value;
         const selectedPetugas = petugasSelect.value;
+        const selectedKeterangan = keteranganInput.value.trim();
         
         const statusChanged = selectedStatus !== currentStatus;
         const flagChanged = selectedFlag !== currentFlag;
         const petugasChanged = selectedPetugas !== currentPetugas;
+        const keteranganChanged = selectedKeterangan !== currentKeterangan;
         
         const isClosedOrCancelled = selectedStatus === 'Closed' || selectedStatus === 'Cancelled';
         
@@ -855,7 +890,7 @@ function showDetail(rowId) {
         }
         
         if (isClosedOrCancelled) {
-            if (flagChanged || petugasChanged) {
+            if (flagChanged || petugasChanged || keteranganChanged) {
                 hasChanges = true;
             }
             if (!currentWaktuSelesai) {
@@ -895,6 +930,9 @@ function showDetail(rowId) {
             if (!currentPetugas) {
                 petugasSelect.value = '';
             }
+            if (!currentKeterangan) {
+                keteranganInput.value = '';
+            }
         }
         
         toggleDropdowns();
@@ -903,6 +941,7 @@ function showDetail(rowId) {
     
     flagSelect.onchange = checkChanges;
     petugasSelect.onchange = checkChanges;
+    keteranganInput.oninput = checkChanges;
     
     toggleDropdowns();
     checkChanges();
@@ -913,6 +952,7 @@ function showDetail(rowId) {
         const newStatus = statusSelect.value;
         const newFlag = flagSelect.value;
         const newPetugas = petugasSelect.value;
+        const newKeterangan = keteranganInput.value.trim();
         
         try {
             saveBtn.disabled = true;
@@ -935,6 +975,10 @@ function showDetail(rowId) {
                     updateData.petugas = newPetugas;
                 }
                 
+                if (newKeterangan !== currentKeterangan) {
+                    updateData.keterangan = newKeterangan;
+                }
+                
                 if (!currentWaktuSelesai) {
                     updateData.waktuSelesai = new Date().toISOString();
                 }
@@ -951,6 +995,7 @@ function showDetail(rowId) {
             row.status = newStatus || row.status;
             row.flag = newFlag || row.flag;
             row.petugas = newPetugas || row.petugas;
+            row.keterangan = newKeterangan || row.keterangan;
             if (updateData.waktuSelesai) {
                 row.waktuSelesai = updateData.waktuSelesai;
             }
@@ -1001,6 +1046,9 @@ async function batchUpdate(rowNumber, updateData) {
     }
     if (updateData.waktuSelesai !== undefined) {
         url.searchParams.append('waktuSelesai', updateData.waktuSelesai);
+    }
+    if (updateData.keterangan !== undefined) {
+        url.searchParams.append('keterangan', updateData.keterangan);
     }
     
     const response = await fetch(url.toString(), {
