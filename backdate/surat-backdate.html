@@ -50,6 +50,27 @@
                 </tbody>
             </table>
         </div>
+        <div id="paginationContainer" class="pagination-container" style="display: none;">
+            <div class="pagination-info">
+                <span>Menampilkan <span id="paginationStart">0</span> - <span id="paginationEnd">0</span> dari <span id="paginationTotal">0</span> data</span>
+            </div>
+            <div class="pagination-controls">
+                <button id="paginationFirst" class="pagination-btn" disabled>«</button>
+                <button id="paginationPrev" class="pagination-btn" disabled>‹</button>
+                <span id="paginationPageInfo" class="pagination-page-info">Halaman 1</span>
+                <button id="paginationNext" class="pagination-btn">›</button>
+                <button id="paginationLast" class="pagination-btn">»</button>
+            </div>
+            <div class="pagination-size">
+                <label for="paginationSizeSelect">Per halaman:</label>
+                <select id="paginationSizeSelect" class="pagination-size-select">
+                    <option value="10">10</option>
+                    <option value="25" selected>25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </div>
+        </div>
         <div id="cardsContainer" class="cards-container"></div>
     </div>
 

@@ -5,6 +5,11 @@ let allData = [];
 let filteredData = [];
 let searchTerm = '';
 
+// Pagination state
+let currentPage = 1;
+let itemsPerPage = 25;
+let paginatedData = [];
+
 document.addEventListener('DOMContentLoaded', () => {
     if (!checkAuth()) {
         return;
@@ -40,6 +45,18 @@ function setupEventListeners() {
             loadData();
         });
     }
+
+    // Pagination event listeners
+    document.getElementById('paginationFirst').addEventListener('click', () => goToPage(1));
+    document.getElementById('paginationPrev').addEventListener('click', () => goToPage(currentPage - 1));
+    document.getElementById('paginationNext').addEventListener('click', () => goToPage(currentPage + 1));
+    document.getElementById('paginationLast').addEventListener('click', () => goToPage(getTotalPages()));
+    document.getElementById('paginationSizeSelect').addEventListener('change', (e) => {
+        itemsPerPage = parseInt(e.target.value);
+        currentPage = 1;
+        applyPagination();
+        displayData();
+    });
 }
 
 async function loadData() {
@@ -117,21 +134,28 @@ function filterAndDisplayData() {
         return true;
     });
 
+    currentPage = 1;
+    applyPagination();
     displayData();
     updateResultCount();
+    updatePagination();
 }
 
 function displayData() {
     const tbody = document.getElementById('tableBody');
     const cardsContainer = document.getElementById('cardsContainer');
+    const paginationContainer = document.getElementById('paginationContainer');
     const isMobile = window.innerWidth <= 768;
     
     if (filteredData.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="loading">Tidak ada data yang ditemukan</td></tr>';
         cardsContainer.innerHTML = '<div class="loading">Tidak ada data yang ditemukan</div>';
+        paginationContainer.style.display = 'none';
         return;
     }
 
+    paginationContainer.style.display = 'flex';
+    
     if (isMobile) {
         displayCards();
     } else {
@@ -143,7 +167,7 @@ function displayTable() {
     const tbody = document.getElementById('tableBody');
     if (!tbody) return;
     
-    tbody.innerHTML = filteredData.map((row) => {
+    tbody.innerHTML = paginatedData.map((row) => {
         return `
             <tr>
                 <td>${escapeHtml(row.no)}</td>
@@ -159,7 +183,7 @@ function displayTable() {
 function displayCards() {
     const cardsContainer = document.getElementById('cardsContainer');
     
-    cardsContainer.innerHTML = filteredData.map(row => {
+    cardsContainer.innerHTML = paginatedData.map(row => {
         return `
             <div class="card">
                 <div class="card-row">
@@ -185,6 +209,60 @@ function displayCards() {
 
 function updateResultCount() {
     document.getElementById('resultCount').textContent = filteredData.length;
+}
+
+// Pagination functions
+function applyPagination() {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    paginatedData = filteredData.slice(startIndex, endIndex);
+}
+
+function getTotalPages() {
+    return Math.ceil(filteredData.length / itemsPerPage) || 1;
+}
+
+function goToPage(page) {
+    const totalPages = getTotalPages();
+    if (page < 1) page = 1;
+    if (page > totalPages) page = totalPages;
+    
+    currentPage = page;
+    applyPagination();
+    displayData();
+    updatePagination();
+    
+    // Scroll to top of table
+    const tableContainer = document.querySelector('.table-container');
+    if (tableContainer) {
+        tableContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+
+function updatePagination() {
+    const totalPages = getTotalPages();
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = Math.min(startIndex + itemsPerPage, filteredData.length);
+    
+    document.getElementById('paginationStart').textContent = filteredData.length > 0 ? startIndex + 1 : 0;
+    document.getElementById('paginationEnd').textContent = endIndex;
+    document.getElementById('paginationTotal').textContent = filteredData.length;
+    document.getElementById('paginationPageInfo').textContent = `Halaman ${currentPage} dari ${totalPages}`;
+    
+    const firstBtn = document.getElementById('paginationFirst');
+    const prevBtn = document.getElementById('paginationPrev');
+    const nextBtn = document.getElementById('paginationNext');
+    const lastBtn = document.getElementById('paginationLast');
+    
+    firstBtn.disabled = currentPage === 1;
+    prevBtn.disabled = currentPage === 1;
+    nextBtn.disabled = currentPage === totalPages;
+    lastBtn.disabled = currentPage === totalPages;
+    
+    firstBtn.classList.toggle('disabled', currentPage === 1);
+    prevBtn.classList.toggle('disabled', currentPage === 1);
+    nextBtn.classList.toggle('disabled', currentPage === totalPages);
+    lastBtn.classList.toggle('disabled', currentPage === totalPages);
 }
 
 function escapeHtml(text) {
