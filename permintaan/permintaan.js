@@ -1,4 +1,4 @@
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzLv5k5tA8DAf_OjTRewxzDB79AD-Q0qHH1qaHjh6ORpmrILaJrYZt5EKMYa5K9KHd89Q/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxVP3PEif421kqpXg7vwKeO-OlTQnTTKIwJhTPirVI3xQk5ONGrLsPpjVVHdj69z8GYOw/exec';
 
 let allData = [];
 let filteredData = [];
@@ -188,7 +188,14 @@ async function loadData() {
                 flag: (findColumnValue(row, 'Flag') || '').trim(),
                 petugas: (findColumnValue(row, 'Petugas') || '').trim(),
                 waktuSelesai: (findColumnValue(row, 'Waktu Selesai') || '').trim(),
-                keterangan: (findColumnValue(row, 'Keterangan') || '').trim()
+                keterangan: (findColumnValue(row, 'Keterangan') || '').trim(),
+                persetujuan: (findColumnValue(row, 'Persetujuan') || '').trim(),
+                alasanPermintaan: findColumnValue(row, 'Alasan Permintaan/Permintaan') || 
+                                 findColumnValue(row, 'ALASAN PERMINTAAN/PERMINTAAN') ||
+                                 findColumnValue(row, 'Alasan Permintaan') ||
+                                 findColumnValue(row, 'ALASAN PERMINTAAN') ||
+                                 '',
+                _originalRow: row // Simpan original row untuk akses langsung
             };
         });
 
@@ -425,6 +432,15 @@ function getKeteranganColumnIndex() {
     return -1;
 }
 
+function getPersetujuanColumnIndex() {
+    for (let i = 0; i < spreadsheetHeaders.length; i++) {
+        if (spreadsheetHeaders[i] && spreadsheetHeaders[i].toLowerCase().includes('persetujuan')) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 function formatStatus(status) {
     if (!status) return '<span class="status-badge status-empty">-</span>';
     const statusLower = status.toLowerCase();
@@ -449,6 +465,24 @@ function formatFlag(flag) {
         return '<span class="flag-badge flag-merah">Merah</span>';
     }
     return `<span class="flag-badge">${escapeHtml(flag)}</span>`;
+}
+
+function formatPersetujuan(persetujuan, flag) {
+    if (!persetujuan || persetujuan.trim() === '') {
+        // Cek apakah perlu persetujuan (kuning/merah)
+        if (flag && (flag.toLowerCase() === 'kuning' || flag.toLowerCase() === 'merah')) {
+            return '<span class="persetujuan-badge persetujuan-pending" title="Menunggu Persetujuan">⏳ Menunggu</span>';
+        }
+        return '<span class="persetujuan-badge persetujuan-none">-</span>';
+    }
+    
+    const persetujuanLower = persetujuan.toLowerCase();
+    if (persetujuanLower.includes('disetujui') || persetujuanLower.includes('approved') || persetujuanLower.includes('setuju')) {
+        return '<span class="persetujuan-badge persetujuan-approved" title="' + escapeHtml(persetujuan) + '">✅ Disetujui</span>';
+    } else if (persetujuanLower.includes('ditolak') || persetujuanLower.includes('rejected') || persetujuanLower.includes('tidak setuju')) {
+        return '<span class="persetujuan-badge persetujuan-rejected" title="' + escapeHtml(persetujuan) + '">❌ Ditolak</span>';
+    }
+    return '<span class="persetujuan-badge">' + escapeHtml(persetujuan) + '</span>';
 }
 
 function displayTable() {
@@ -665,10 +699,13 @@ function updateTableHeaders() {
 }
 
 function showDetail(rowId) {
+    console.log('showDetail called with rowId:', rowId);
     const row = allData.find(r => r.id === rowId);
     if (!row) {
+        console.error('Row not found for id:', rowId, 'Total rows:', allData.length);
         return;
     }
+    console.log('Row found:', row);
 
     let dataName = '';
     const nameHeaders = ['Nama Lengkap', 'Nama', 'Name', 'NAMA LENGKAP', 'NAMA'];
@@ -701,12 +738,26 @@ function showDetail(rowId) {
     const petugasColIndex = getPetugasColumnIndex();
     const waktuSelesaiColIndex = getWaktuSelesaiColumnIndex();
     const keteranganColIndex = getKeteranganColumnIndex();
+    const persetujuanColIndex = getPersetujuanColumnIndex();
     
     const currentStatus = (row.status || '').trim();
-    const currentFlag = (row.flag || '').trim();
+    let currentFlag = (row.flag || '').trim();
     const currentPetugas = (row.petugas || '').trim();
     const currentWaktuSelesai = (row.waktuSelesai || '').trim();
     const currentKeterangan = (row.keterangan || '').trim();
+    const currentPersetujuan = (row.persetujuan || '').trim();
+    
+    // Cek apakah sudah disetujui (untuk kuning/merah)
+    const isApproved = currentPersetujuan.toLowerCase().includes('disetujui') || 
+                       currentPersetujuan.toLowerCase().includes('approved') ||
+                       currentPersetujuan.toLowerCase().includes('setuju');
+    const isRejected = currentPersetujuan.toLowerCase().includes('ditolak') || 
+                       currentPersetujuan.toLowerCase().includes('rejected') ||
+                       currentPersetujuan.toLowerCase().includes('tidak setuju');
+    
+    // Untuk kuning/merah, harus ada persetujuan dulu (kecuali sudah disetujui/ditolak)
+    const needsApproval = (currentFlag.toLowerCase() === 'kuning' || currentFlag.toLowerCase() === 'merah') && 
+                          !isApproved && !isRejected;
     
     const isCompleted = (currentStatus === 'Closed' || currentStatus === 'Cancelled') && 
                         currentFlag && currentPetugas;
@@ -732,7 +783,8 @@ function showDetail(rowId) {
         }
         
         if (colIndex === statusColIndex || colIndex === flagColIndex || 
-            colIndex === petugasColIndex || colIndex === keteranganColIndex) {
+            colIndex === petugasColIndex || colIndex === keteranganColIndex ||
+            colIndex === persetujuanColIndex) {
             return '';
         }
         
@@ -764,6 +816,16 @@ function showDetail(rowId) {
             </div>
         `;
     }).filter(item => item !== '').join('');
+    
+    // Tambahkan persetujuan untuk data kuning/merah (hanya sekali)
+    if (currentFlag && (currentFlag.toLowerCase() === 'kuning' || currentFlag.toLowerCase() === 'merah')) {
+        detailContent.innerHTML += `
+            <div class="detail-item">
+                <label>Persetujuan</label>
+                <div class="value">${formatPersetujuan(currentPersetujuan, currentFlag)}</div>
+            </div>
+        `;
+    }
     
     if (isCompleted) {
         const statusHeader = spreadsheetHeaders[statusColIndex] || 'Status';
@@ -830,23 +892,48 @@ function showDetail(rowId) {
     const petugasSelect = document.getElementById('petugasSelect');
     const keteranganInput = document.getElementById('keteranganInput');
     const saveBtn = document.getElementById('saveBtn');
+    const saveFlagBtn = document.getElementById('saveFlagBtn');
+    const whatsappBtn = document.getElementById('whatsappBtn');
+    const whatsappSection = document.getElementById('whatsappSection');
     const statusSection = document.getElementById('statusSection');
     const flagSection = document.getElementById('flagSection');
     const petugasSection = document.getElementById('petugasSection');
     const keteranganSection = document.getElementById('keteranganSection');
     
-    saveBtn.textContent = 'Simpan';
-    
-    if (currentStatus) {
-        statusSelect.value = currentStatus;
-    } else {
-        statusSelect.value = 'Open';
+    // Check if elements exist
+    if (!saveBtn || !saveFlagBtn || !whatsappBtn || !whatsappSection || !statusSection || !flagSection || !petugasSection || !keteranganSection) {
+        console.error('Missing required elements:', {
+            saveBtn: !!saveBtn,
+            saveFlagBtn: !!saveFlagBtn,
+            whatsappBtn: !!whatsappBtn,
+            whatsappSection: !!whatsappSection,
+            statusSection: !!statusSection,
+            flagSection: !!flagSection,
+            petugasSection: !!petugasSection,
+            keteranganSection: !!keteranganSection
+        });
+        showNotification('Error: Elemen modal tidak ditemukan. Silakan refresh halaman.', 'error');
+        return;
     }
     
+    saveBtn.textContent = 'Simpan';
+    saveFlagBtn.textContent = 'Simpan Flag';
+    
+    // Set nilai flag terlebih dahulu
     if (currentFlag) {
         flagSelect.value = currentFlag;
     } else {
         flagSelect.value = '';
+    }
+    
+    // Pastikan flagSelect tidak disabled agar bisa diubah
+    flagSelect.disabled = false;
+    
+    // Set nilai status setelah flag
+    if (currentStatus) {
+        statusSelect.value = currentStatus;
+    } else {
+        statusSelect.value = 'Open';
     }
     
     if (currentPetugas) {
@@ -865,26 +952,105 @@ function showDetail(rowId) {
     
     function toggleDropdowns() {
         const selectedStatus = statusSelect.value;
+        const selectedFlag = flagSelect.value;
         const isClosedOrCancelled = selectedStatus === 'Closed' || selectedStatus === 'Cancelled';
+        
+        // Cek apakah flag yang dipilih memerlukan persetujuan
+        const selectedFlagNeedsApproval = selectedFlag && 
+                                          (selectedFlag.toLowerCase() === 'kuning' || selectedFlag.toLowerCase() === 'merah') && 
+                                          !isApproved && !isRejected;
         
         if (isCompleted) {
             statusSection.style.display = 'none';
             flagSection.style.display = 'none';
             petugasSection.style.display = 'none';
             keteranganSection.style.display = 'none';
+            whatsappSection.style.display = 'none';
             saveBtn.style.display = 'none';
-        } else if (isClosedOrCancelled) {
-            statusSection.style.display = 'flex';
-            flagSection.style.display = 'flex';
-            petugasSection.style.display = 'flex';
-            keteranganSection.style.display = 'flex';
-            saveBtn.style.display = 'block';
+            saveFlagBtn.style.display = 'none';
         } else {
-            statusSection.style.display = 'flex';
-            flagSection.style.display = 'none';
-            petugasSection.style.display = 'none';
-            keteranganSection.style.display = 'none';
-            saveBtn.style.display = 'none';
+            // Selalu tampilkan flag section terlebih dahulu
+            flagSection.style.display = 'flex';
+            
+            // Jika belum ada flag yang dipilih, sembunyikan semua field lainnya
+            if (!selectedFlag || selectedFlag.trim() === '') {
+                statusSection.style.display = 'none';
+                petugasSection.style.display = 'none';
+                keteranganSection.style.display = 'none';
+                whatsappSection.style.display = 'none';
+                saveBtn.style.display = 'none';
+                saveFlagBtn.style.display = 'none';
+            }
+            // Jika flag sudah dipilih dan berbeda dengan currentFlag (belum disimpan atau diubah), tampilkan button simpan flag
+            else if (selectedFlag !== currentFlag) {
+                saveFlagBtn.style.display = 'block';
+                saveFlagBtn.disabled = false;
+                saveFlagBtn.textContent = 'Simpan Flag';
+                statusSection.style.display = 'none';
+                petugasSection.style.display = 'none';
+                keteranganSection.style.display = 'none';
+                whatsappSection.style.display = 'none';
+                saveBtn.style.display = 'none';
+            }
+            // Jika flag hijau dan sudah disimpan, langsung bisa pilih status
+            else if (selectedFlag.toLowerCase() === 'hijau') {
+                saveFlagBtn.style.display = 'none';
+                statusSection.style.display = 'flex';
+                // Jika status sudah Closed/Cancelled, tampilkan petugas dan keterangan
+                if (isClosedOrCancelled) {
+                    petugasSection.style.display = 'flex';
+                    keteranganSection.style.display = 'flex';
+                    whatsappSection.style.display = 'none';
+                    saveBtn.style.display = 'block';
+                } else {
+                    petugasSection.style.display = 'none';
+                    keteranganSection.style.display = 'none';
+                    whatsappSection.style.display = 'none';
+                    saveBtn.style.display = 'none';
+                }
+            }
+            // Jika flag kuning/merah dan sudah disetujui, bisa pilih status
+            else if (isApproved || isRejected) {
+                saveFlagBtn.style.display = 'none';
+                statusSection.style.display = 'flex';
+                // Jika status sudah Closed/Cancelled, tampilkan petugas dan keterangan
+                if (isClosedOrCancelled) {
+                    petugasSection.style.display = 'flex';
+                    keteranganSection.style.display = 'flex';
+                    whatsappSection.style.display = 'none';
+                    saveBtn.style.display = 'block';
+                } else {
+                    petugasSection.style.display = 'none';
+                    keteranganSection.style.display = 'none';
+                    whatsappSection.style.display = 'none';
+                    saveBtn.style.display = 'none';
+                }
+            }
+            // Jika flag kuning/merah dan belum disetujui, tampilkan button WhatsApp (belum bisa pilih status)
+            else if (selectedFlagNeedsApproval || needsApproval) {
+                saveFlagBtn.style.display = 'none';
+                statusSection.style.display = 'none';
+                petugasSection.style.display = 'none';
+                keteranganSection.style.display = 'none';
+                whatsappSection.style.display = 'flex';
+                saveBtn.style.display = 'none';
+            }
+            // Default: tampilkan status section
+            else {
+                saveFlagBtn.style.display = 'none';
+                statusSection.style.display = 'flex';
+                if (isClosedOrCancelled) {
+                    petugasSection.style.display = 'flex';
+                    keteranganSection.style.display = 'flex';
+                    whatsappSection.style.display = 'none';
+                    saveBtn.style.display = 'block';
+                } else {
+                    petugasSection.style.display = 'none';
+                    keteranganSection.style.display = 'none';
+                    whatsappSection.style.display = 'none';
+                    saveBtn.style.display = 'none';
+                }
+            }
         }
     }
     
@@ -907,24 +1073,33 @@ function showDetail(rowId) {
         
         const isClosedOrCancelled = selectedStatus === 'Closed' || selectedStatus === 'Cancelled';
         
+        // Validasi: flag harus dipilih terlebih dahulu
+        if (!selectedFlag || selectedFlag.trim() === '') {
+            saveBtn.disabled = true;
+            saveBtn.classList.add('disabled');
+            return;
+        }
+        
+        // Untuk kuning/merah, harus sudah disetujui dulu
+        if ((selectedFlag.toLowerCase() === 'kuning' || selectedFlag.toLowerCase() === 'merah') && 
+            !isApproved && !isRejected) {
+            saveBtn.disabled = true;
+            saveBtn.classList.add('disabled');
+            return;
+        }
+        
         let hasChanges = false;
         
-        if (statusChanged) {
+        if (flagChanged) {
             hasChanges = true;
         }
         
         if (isClosedOrCancelled) {
-            if (flagChanged || petugasChanged || keteranganChanged) {
+            if (statusChanged || petugasChanged || keteranganChanged) {
                 hasChanges = true;
             }
             if (!currentWaktuSelesai) {
                 hasChanges = true;
-            }
-            
-            if (!selectedFlag || selectedFlag.trim() === '') {
-                saveBtn.disabled = true;
-                saveBtn.classList.add('disabled');
-                return;
             }
             
             if (!selectedPetugas || selectedPetugas.trim() === '') {
@@ -942,6 +1117,85 @@ function showDetail(rowId) {
             saveBtn.classList.add('disabled');
         }
     }
+    
+    flagSelect.onchange = () => {
+        const selectedFlag = flagSelect.value;
+        
+        // Jika flag berubah dari yang sudah disimpan, reset status ke Open (kecuali sudah completed)
+        if (selectedFlag !== currentFlag && !isCompleted) {
+            statusSelect.value = 'Open';
+        }
+        
+        // Reset status jika flag berubah menjadi kuning/merah dan belum disetujui
+        if (selectedFlag && (selectedFlag.toLowerCase() === 'kuning' || selectedFlag.toLowerCase() === 'merah')) {
+            if (!isApproved && !isRejected) {
+                // Jika belum disetujui, reset status ke Open
+                statusSelect.value = 'Open';
+            }
+        }
+        
+        toggleDropdowns();
+        checkChanges();
+    };
+    
+    // Setup button simpan flag
+    saveFlagBtn.onclick = async () => {
+        if (saveFlagBtn.disabled) return;
+        
+        const selectedFlag = flagSelect.value;
+        
+        if (!selectedFlag || selectedFlag.trim() === '') {
+            showNotification('Pilih flag terlebih dahulu', 'error');
+            return;
+        }
+        
+        try {
+            saveFlagBtn.disabled = true;
+            saveFlagBtn.textContent = 'Menyimpan...';
+            
+            const rowNumberToUpdate = row.originalRowNumber || row.rowNumber;
+            const updateData = {
+                flag: selectedFlag
+            };
+            
+            await batchUpdate(rowNumberToUpdate, updateData);
+            
+            // Update currentFlag di row
+            row.flag = selectedFlag;
+            currentFlag = selectedFlag;
+            
+            // Update di allData
+            const rowIndex = allData.findIndex(r => r.id === row.id);
+            if (rowIndex !== -1) {
+                allData[rowIndex].flag = selectedFlag;
+            }
+            
+            // Refresh tampilan
+            filterAndDisplayData();
+            
+            showNotification('Flag berhasil disimpan!', 'success');
+            
+            // Update currentFlag di scope showDetail agar button simpan flag bisa muncul lagi jika diubah
+            // Jangan refresh popup, biarkan user bisa langsung mengubah flag lagi jika mau
+            // Hanya update tampilan tanpa refresh popup
+            currentFlag = selectedFlag;
+            row.flag = selectedFlag;
+            
+            // Update toggleDropdowns untuk refresh tampilan
+            toggleDropdowns();
+            checkChanges();
+            
+            // Reset button simpan flag
+            saveFlagBtn.disabled = false;
+            saveFlagBtn.textContent = 'Simpan Flag';
+            
+        } catch (error) {
+            console.error('Error saving flag:', error);
+            saveFlagBtn.disabled = false;
+            saveFlagBtn.textContent = 'Simpan Flag';
+            showNotification('Error: ' + error.message, 'error');
+        }
+    };
     
     statusSelect.onchange = () => {
         const selectedStatus = statusSelect.value;
@@ -963,9 +1217,104 @@ function showDetail(rowId) {
         checkChanges();
     };
     
-    flagSelect.onchange = checkChanges;
     petugasSelect.onchange = checkChanges;
     keteranganInput.oninput = checkChanges;
+    
+    // Setup WhatsApp button
+    whatsappBtn.onclick = () => {
+        const selectedFlag = flagSelect.value;
+        if (!selectedFlag || (selectedFlag.toLowerCase() !== 'kuning' && selectedFlag.toLowerCase() !== 'merah')) {
+            return;
+        }
+        
+        // Generate approval link using rowNumber instead of id (hanya 1 link)
+        // Deteksi domain untuk link approval
+        let baseUrl;
+        if (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('permintaandof.vercel.app')) {
+            baseUrl = 'https://permintaandof.vercel.app/permintaan/';
+        } else {
+            baseUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
+        }
+        const rowNumber = row.originalRowNumber || row.rowNumber;
+        const approvalUrl = `${baseUrl}approval.html?rowId=${rowNumber}`;
+        
+        // Build message template
+        let message = `*Permintaan Persetujuan*\n\n`;
+        message += `Detail Permintaan:\n`;
+        
+        // Find alasan permintaan field - gunakan yang sudah disimpan atau cari dari original row
+        let alasanPermintaan = '';
+        
+        // Prioritas 1: Gunakan yang sudah disimpan di row.alasanPermintaan
+        if (row.alasanPermintaan && row.alasanPermintaan.trim() !== '') {
+            alasanPermintaan = row.alasanPermintaan.trim();
+        }
+        
+        // Prioritas 2: Jika tidak ada, cari dari original row menggunakan findColumnValue
+        if (!alasanPermintaan && row._originalRow) {
+            const originalRow = row._originalRow;
+            const alasanKeys = [
+                'Alasan Permintaan/Permintaan',
+                'ALASAN PERMINTAAN/PERMINTAAN',
+                'Alasan Permintaan',
+                'ALASAN PERMINTAAN'
+            ];
+            
+            for (const key of alasanKeys) {
+                const value = findColumnValue(originalRow, key);
+                if (value && value.trim() !== '') {
+                    alasanPermintaan = value.trim();
+                    break;
+                }
+            }
+        }
+        
+        // Prioritas 3: Jika masih tidak ditemukan, cari di spreadsheetHeaders
+        if (!alasanPermintaan || alasanPermintaan.trim() === '') {
+            for (let i = 0; i < spreadsheetHeaders.length; i++) {
+                const header = spreadsheetHeaders[i];
+                if (header) {
+                    const headerLower = header.toLowerCase().trim();
+                    // Pastikan header mengandung BOTH "alasan" DAN "permintaan"
+                    // Dan bukan field lain seperti "Unit Kerja" atau "Status Surat"
+                    if (headerLower.includes('alasan') && 
+                        headerLower.includes('permintaan') &&
+                        !headerLower.includes('unit') &&
+                        !headerLower.includes('kerja') &&
+                        !headerLower.includes('status') &&
+                        !headerLower.includes('surat')) {
+                        const colLetter = String.fromCharCode(65 + i);
+                        const value = row[colLetter] || '';
+                        if (value && value.trim() !== '') {
+                            alasanPermintaan = value.trim();
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Add key details
+        if (row.A) message += `No. Surat: ${row.A}\n`;
+        if (dataName) message += `Nama: ${dataName}\n`;
+        if (row.pilihPermintaan) message += `Jenis Permintaan: ${row.pilihPermintaan}\n`;
+        if (alasanPermintaan) message += `Alasan: ${alasanPermintaan}\n`;
+        
+        message += `\nFlag: ${selectedFlag}\n`;
+        message += `Status: ${statusSelect.value}\n\n`;
+        
+        message += `*Link Persetujuan:*\n`;
+        message += `${approvalUrl}\n\n`;
+        message += `Klik link di atas untuk menyetujui atau menolak permintaan ini.`;
+        
+        // Encode message for WhatsApp
+        const encodedMessage = encodeURIComponent(message);
+        const whatsappNumber = '6282154549026';
+        const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodedMessage}`;
+        
+        // Open WhatsApp
+        window.open(whatsappUrl, '_blank');
+    };
     
     toggleDropdowns();
     checkChanges();
@@ -1006,6 +1355,11 @@ function showDetail(rowId) {
                 if (!currentWaktuSelesai) {
                     updateData.waktuSelesai = new Date().toISOString();
                 }
+            }
+            
+            // Jika ditolak (rejected), set status menjadi Cancelled
+            if (isRejected) {
+                updateData.status = 'Cancelled';
             }
             
             if (Object.keys(updateData).length === 0) {
@@ -1073,6 +1427,9 @@ async function batchUpdate(rowNumber, updateData) {
     }
     if (updateData.keterangan !== undefined) {
         url.searchParams.append('keterangan', updateData.keterangan);
+    }
+    if (updateData.persetujuan !== undefined) {
+        url.searchParams.append('persetujuan', updateData.persetujuan);
     }
     
     const response = await fetch(url.toString(), {

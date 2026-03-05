@@ -1,4 +1,4 @@
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwTkazPligfvCUdrT1DsFECQc71sVfbAcYtInUHnnTiyBtU3AJDyjjRI9VeIeAmABNe/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwctc3dZjMF9mo_JJse1AAo-osjXqPJzqFAJQFaU_KUrmKfPrLEwKCztErJDimg8975/exec';
 const PERJANJIAN_SHEET_NAME = 'LIST NO PERJANJIAN BACKDATE';
 
 let allData = [];

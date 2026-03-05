@@ -107,21 +107,22 @@
             <h2>Detail Data</h2>
             <div id="detailContent" class="detail-content"></div>
             <div class="status-flag-container">
-                <div id="statusSection" class="status-section">
-                    <label for="statusSelect">Status:</label>
-                    <select id="statusSelect" class="status-select">
-                        <option value="Open" selected>Open</option>
-                        <option value="Closed">Closed</option>
-                        <option value="Cancelled">Cancelled</option>
-                    </select>
-                </div>
-                <div id="flagSection" class="status-section" style="display: none;">
+                <div id="flagSection" class="status-section">
                     <label for="flagSelect">Flag:</label>
                     <select id="flagSelect" class="status-select">
                         <option value="">Pilih Flag</option>
                         <option value="Hijau">Hijau</option>
                         <option value="Kuning">Kuning</option>
                         <option value="Merah">Merah</option>
+                    </select>
+                    <button id="saveFlagBtn" class="save-flag-btn" style="display: none;">Simpan Flag</button>
+                </div>
+                <div id="statusSection" class="status-section" style="display: none;">
+                    <label for="statusSelect">Status:</label>
+                    <select id="statusSelect" class="status-select">
+                        <option value="Open">Open</option>
+                        <option value="Closed">Closed</option>
+                        <option value="Cancelled">Cancelled</option>
                     </select>
                 </div>
                 <div id="petugasSection" class="status-section" style="display: none;">
@@ -136,6 +137,9 @@
                 <div id="keteranganSection" class="status-section" style="display: none;">
                     <label for="keteranganInput">Keterangan:</label>
                     <textarea id="keteranganInput" class="keterangan-input" placeholder="Masukkan keterangan..." rows="3"></textarea>
+                </div>
+                <div id="whatsappSection" class="status-section" style="display: none;">
+                    <button id="whatsappBtn" class="whatsapp-btn">📱 Minta Persetujuan via WhatsApp</button>
                 </div>
                 <div class="save-button-container">
                     <button id="saveBtn" class="save-status-btn" style="display: none;">Simpan</button>
